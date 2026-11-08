@@ -1,4 +1,4 @@
-﻿@page "/dshocvien"
+@page "/dshocvien"
 @page "/"
 @rendermode InteractiveServer
 @attribute [StreamRendering]
@@ -8,87 +8,8 @@
 @inject NavigationManager Navigation
 <PageTitle>Quản lý rèn luyện học viên</PageTitle>
 
-<div class="app-page">
-    <header class="topbar">
-        <div class="brand">
-            <img class="brand-logo-image"
-                 src="images/Logo_Bộ_Công_an_VN.png"
-                 alt="Biểu trưng Công an nhân dân" />
-
-            <div class="brand-divider"></div>
-
-            <img class="brand-logo-image academy-logo"
-                 src="images/Logo_hoc_vien_ANND.png"
-                 alt="Logo Học viện An ninh nhân dân" />
-
-            <div class="brand-text">
-                <h2>HỌC VIỆN AN NINH NHÂN DÂN</h2>
-
-                <small>HỆ THỐNG QUẢN LÝ RÈN LUYỆN HỌC VIÊN</small>
-            </div>
-        </div>
-
-        <div class="topbar-right">
-            <span class="system-status">
-                <span></span> HỆ THỐNG QUẢN LÝ
-            </span>
-            <div class="user-avatar">HV</div>
-        </div>
-    </header>
-
-    <div class="page-layout">
-        <aside class="sidebar">
-            <div class="side-caption">MENU CHÍNH</div>
-
-            <button class="@NavClass(false)" @onclick="ShowDashboard">
-                <span>⌂</span> Trang chủ
-            </button>
-
-            <button class="@NavClass(true)" @onclick="ShowStudents">
-                <span>♙</span> Quản lý học viên
-            </button>
-
-            <div class="side-caption side-caption-second">
-                QUẢN LÝ RÈN LUYỆN
-            </div>
-
-            <button class="nav-item" @onclick='() => NavigateTo("/ky-danh-gia")'>
-                <span>▦</span> Quản lý kỳ đánh giá
-            </button>
-
-            <button class="nav-item" @onclick='() => NavigateTo("/quan-ly-tieu-chi")'>
-                <span>☷</span> Quản lý tiêu chí
-            </button>
-
-            <button class="nav-item" @onclick='() => NavigateTo("/nhap-ket-qua")'>
-                <span>✓</span> Nhập kết quả đánh giá
-            </button>
-
-            <button class="nav-item" @onclick='() => NavigateTo("/bao-cao-ket-qua")'>
-                <span>▥</span> Báo cáo kết quả
-            </button>
-
-            <div class="side-caption side-caption-second">
-                HỖ TRỢ
-            </div>
-
-            <button class="nav-item" @onclick="ShowDashboard">
-                <span>?</span> Trợ giúp
-            </button>
-
-            <button class="nav-item logout-item" @onclick="ShowDashboard">
-                <span>↪</span> Đăng xuất
-            </button>
-
-            <div class="sidebar-footer">
-                HỌC VIỆN AN NINH NHÂN DÂN
-            </div>
-        </aside>
-
-        <main class="main-content">
-            <div class="breadcrumb">Trang chủ <span>/</span> @CurrentSection</div>
-
-            @if (showDashboard)
+<div class="page-content">
+@if (showDashboard)
             {
                 <section class="welcome-banner">
                     <div>
@@ -356,9 +277,7 @@
                 <span>QUẢN LÝ RÈN LUYỆN HỌC VIÊN</span>
                 <span>Hệ thống quản lý nội bộ · Phiên bản 1.0</span>
             </footer>
-        </main>
-    </div>
-</div>
+        </div>
 
 <style>
     :root {
@@ -371,7 +290,7 @@
         --background: #f5f8f5;
     }
 
-    .app-page {
+    .page-content {
         min-height: 100vh;
         background: var(--background);
         color: var(--text);
@@ -1219,7 +1138,7 @@
         }
     }
     /* Phong cách quản lý rèn luyện CAND */
-    .app-page {
+    .page-content {
         background: #f4f7f3;
         color: #183d2b;
     }
@@ -1334,7 +1253,7 @@
 
 
     /* Giao diện tinh chỉnh theo mẫu Học viện ANND */
-    .app-page {
+    .page-content {
         background: #f1f7f4;
         color: #123f32;
     }
