@@ -1,0 +1,1798 @@
+﻿@page "/dshocvien"
+@page "/"
+@rendermode InteractiveServer
+@attribute [StreamRendering]
+@using Microsoft.EntityFrameworkCore
+@using MyWebApp.Models
+@inject MyWebApp.Data.AppDbContext DbContext
+@inject NavigationManager Navigation
+<PageTitle>Quản lý rèn luyện học viên</PageTitle>
+
+<div class="app-page">
+    <header class="topbar">
+        <div class="brand">
+            <img class="brand-logo-image"
+                 src="images/Logo_Bộ_Công_an_VN.png"
+                 alt="Biểu trưng Công an nhân dân" />
+
+            <div class="brand-divider"></div>
+
+            <img class="brand-logo-image academy-logo"
+                 src="images/Logo_hoc_vien_ANND.png"
+                 alt="Logo Học viện An ninh nhân dân" />
+
+            <div class="brand-text">
+                <h2>HỌC VIỆN AN NINH NHÂN DÂN</h2>
+
+                <small>HỆ THỐNG QUẢN LÝ RÈN LUYỆN HỌC VIÊN</small>
+            </div>
+        </div>
+
+        <div class="topbar-right">
+            <span class="system-status">
+                <span></span> HỆ THỐNG QUẢN LÝ
+            </span>
+            <div class="user-avatar">HV</div>
+        </div>
+    </header>
+
+    <div class="page-layout">
+        <aside class="sidebar">
+            <div class="side-caption">MENU CHÍNH</div>
+
+            <button class="@NavClass(false)" @onclick="ShowDashboard">
+                <span>⌂</span> Trang chủ
+            </button>
+
+            <button class="@NavClass(true)" @onclick="ShowStudents">
+                <span>♙</span> Quản lý học viên
+            </button>
+
+            <div class="side-caption side-caption-second">
+                QUẢN LÝ RÈN LUYỆN
+            </div>
+
+            <button class="nav-item" @onclick='() => NavigateTo("/ky-danh-gia")'>
+                <span>▦</span> Quản lý kỳ đánh giá
+            </button>
+
+            <button class="nav-item" @onclick='() => NavigateTo("/quan-ly-tieu-chi")'>
+                <span>☷</span> Quản lý tiêu chí
+            </button>
+
+            <button class="nav-item" @onclick='() => NavigateTo("/nhap-ket-qua")'>
+                <span>✓</span> Nhập kết quả đánh giá
+            </button>
+
+            <button class="nav-item" @onclick='() => NavigateTo("/bao-cao-ket-qua")'>
+                <span>▥</span> Báo cáo kết quả
+            </button>
+
+            <div class="side-caption side-caption-second">
+                HỖ TRỢ
+            </div>
+
+            <button class="nav-item" @onclick="ShowDashboard">
+                <span>?</span> Trợ giúp
+            </button>
+
+            <button class="nav-item logout-item" @onclick="ShowDashboard">
+                <span>↪</span> Đăng xuất
+            </button>
+
+            <div class="sidebar-footer">
+                HỌC VIỆN AN NINH NHÂN DÂN
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="breadcrumb">Trang chủ <span>/</span> @CurrentSection</div>
+
+            @if (showDashboard)
+            {
+                <section class="welcome-banner">
+                    <div>
+                        <span class="eyebrow">CHÀO MỪNG BẠN ĐẾN VỚI</span>
+                        <h1>Hệ thống quản lý rèn luyện học viên</h1>
+                        <p>Đồng hành cùng học viên trong quá trình rèn luyện, học tập<br /> và xây dựng phẩm chất, bản lĩnh người chiến sĩ Công an nhân dân.</p>
+                        <button class="btn-primary" @onclick="ShowStudents">
+                            Quản lý học viên <span>→</span>
+                        </button>
+                    </div>
+                    <div class="banner-symbol">
+                    </div>
+                </section>
+
+                <div class="section-heading">
+                    <div>
+                        <h2>Tổng quan hệ thống</h2>
+                        <p>Các số liệu được cập nhật từ danh sách hiện tại.</p>
+                    </div>
+                    <span class="live-tag">● ĐANG HOẠT ĐỘNG</span>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon green-icon">♙</div>
+                        <div class="stat-label">Tổng học viên</div>
+                        <div class="stat-number">@hocViens.Count</div>
+                        <div class="stat-foot">Học viên trong danh sách</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon blue-icon">▤</div>
+                        <div class="stat-label">Số lớp</div>
+                        <div class="stat-number">@hocViens.Select(x => x.Lop).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).Count()</div>
+                        <div class="stat-foot">Lớp học có học viên</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon gold-icon">★</div>
+                        <div class="stat-label">Xếp loại Xuất sắc</div>
+                        <div class="stat-number">@hocViens.Count(x => x.XepLoai == "Xuất sắc")</div>
+                        <div class="stat-foot">Xếp loại Xuất sắc</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon purple-icon">◎</div>
+                        <div class="stat-label">Điểm trung bình</div>
+                        <div class="stat-number">@AverageScore.ToString("0.0")</div>
+                        <div class="stat-foot">Thang điểm 10</div>
+                    </div>
+                </div>
+
+                <section class="panel">
+                    <div class="panel-heading">
+                        <div>
+                            <h2>Học viên mới cập nhật</h2>
+                            <p>Danh sách học viên hiện có trong hệ thống.</p>
+                        </div>
+                        <button class="btn-outline" @onclick="ShowStudents">Xem tất cả →</button>
+                    </div>
+                    @if (hocViens.Count == 0)
+                    {
+                        <div class="empty-state">
+                            <div>▤</div>
+                            <b>Chưa có dữ liệu học viên</b>
+                            <p>Hãy thêm học viên để bắt đầu quản lý.</p>
+                            <button class="btn-primary" @onclick="ShowStudents">+ Thêm học viên</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>HỌ VÀ TÊN</th>
+                                        <th>LỚP</th>
+                                        <th>ĐIỂM RÈN LUYỆN</th>
+                                        <th>XẾP LOẠI</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var hv in hocViens.TakeLast(5).Reverse())
+                                    {
+                                        <tr>
+                                            <td><b>@hv.HoTen</b></td>
+                                            <td>@hv.Lop</td>
+                                            <td>@hv.DiemRenLuyen.ToString("0.0") / 10</td>
+                                            <td><span class="@BadgeClass(hv.XepLoai)">@hv.XepLoai</span></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </section>
+            }
+            else
+            {
+                <div class="section-heading page-title-row">
+                    <div>
+                        <span class="eyebrow green-text">QUẢN LÝ DỮ LIỆU</span>
+                        <h1>Danh sách học viên</h1>
+                        <p>Quản lý hồ sơ và theo dõi kết quả rèn luyện của từng học viên.</p>
+                    </div>
+                    <button class="btn-primary" @onclick="NewStudent">＋ Thêm học viên</button>
+                </div>
+
+                <div class="stats-grid compact-stats">
+                    <div class="stat-card">
+                        <div class="stat-label">Tổng học viên</div>
+                        <div class="stat-number">@hocViens.Count</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Xếp loại Xuất sắc</div>
+                        <div class="stat-number green-text">@hocViens.Count(x => x.XepLoai == "Xuất sắc")</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Xếp loại Khá</div>
+                        <div class="stat-number">@hocViens.Count(x => x.XepLoai == "Khá")</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Trung bình / Không xếp loại</div>
+                        <div class="stat-number">@hocViens.Count(x => x.XepLoai == "Trung bình" || x.XepLoai == "Không xếp loại")</div>
+                    </div>
+                </div>
+
+                @if (showForm)
+                {
+                    <section class="panel form-panel">
+                        <div class="panel-heading">
+                            <div>
+                                <h2>@(editingId.HasValue ? "Cập nhật hồ sơ học viên" : "Thêm học viên mới")</h2>
+                                <p>Nhập đầy đủ thông tin vào các trường bên dưới.</p>
+                            </div>
+                            <button class="btn-close" @onclick="CancelForm">✕</button>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(message))
+                        {
+                            <div class="message-box">@message</div>
+                        }
+
+                        <div class="form-grid">
+                            <div class="form-field full-field">
+                                <label>Họ và tên <span>*</span></label>
+                                <input @bind="hocVien.HoTen" placeholder="Nhập họ và tên học viên" />
+                            </div>
+                            <div class="form-field">
+                                <label>Ngày sinh <span>*</span></label>
+                                <input type="date" @bind="hocVien.NgaySinh" />
+                            </div>
+                            <div class="form-field">
+                                <label>Lớp <span>*</span></label>
+                                <input @bind="hocVien.Lop" placeholder="Ví dụ: D45A" />
+                            </div>
+                            <div class="form-field full-field">
+                                <label>Địa chỉ hiện nay</label>
+                                <input @bind="hocVien.DiaChiHienTai" placeholder="Nhập địa chỉ hiện nay" />
+                            </div>
+                            <div class="form-field">
+                                <label>Điểm rèn luyện (0–10)</label>
+                                <input type="number" min="0" max="10" step="0,1" @bind="hocVien.DiemRenLuyen" />
+                            </div>
+                            <div class="form-field">
+                                <label>Xếp loại</label>
+                                <div class="readonly-field">@hocVien.XepLoai</div>
+                                <small>Tự động xác định theo điểm rèn luyện.</small>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button class="btn-secondary" @onclick="CancelForm">Hủy</button>
+                            <button class="btn-primary" @onclick="SaveStudent">✓ @(editingId.HasValue ? "Lưu thay đổi" : "Lưu học viên")</button>
+                        </div>
+                    </section>
+                }
+
+                <section class="panel">
+                    <div class="panel-heading">
+                        <div>
+                            <h2>Danh sách hồ sơ</h2>
+                            <p>Hiển thị @FilteredStudents.Count trên tổng số @hocViens.Count học viên.</p>
+                        </div>
+                    </div>
+
+                    <div class="filter-bar">
+                        <div class="search-box">
+                            <span>⌕</span>
+                            <input @bind="searchText"
+                                   @bind:event="oninput"
+                                   placeholder="Tìm tên, lớp, ngày sinh, tháng, năm, điểm..." />
+                        </div>
+                        <select @bind="filterClass">
+                            <option value="">Tất cả các lớp</option>
+                            @foreach (var lop in hocViens.Select(x => x.Lop).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x))
+                            {
+                                <option value="@lop">@lop</option>
+                            }
+                        </select>
+                        <select @bind="filterRating">
+                            <option value="">Tất cả xếp loại</option>
+                            <option value="Xuất sắc">Xuất sắc</option>
+                            <option value="Giỏi">Giỏi</option>
+                            <option value="Khá">Khá</option>
+                            <option value="Trung bình">Trung bình</option>
+                            <option value="Không xếp loại">Không xếp loại</option>
+                        </select>
+                        <button class="btn-outline" @onclick="ClearFilters">Đặt lại</button>
+                    </div>
+
+                    @if (FilteredStudents.Count == 0)
+                    {
+                        <div class="empty-state">
+                            <div>⌕</div>
+                            <b>Không tìm thấy học viên</b>
+                            <p>Thử thay đổi từ khóa hoặc điều kiện lọc.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>STT</th>
+                                        <th>HỌ VÀ TÊN</th>
+                                        <th>NGÀY SINH</th>
+                                        <th>LỚP</th>
+                                        <th>ĐIỂM</th>
+                                        <th>XẾP LOẠI</th>
+                                        <th>THAO TÁC</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (int i = 0; i < FilteredStudents.Count; i++)
+                                    {
+                                        var hv = FilteredStudents[i];
+                                        <tr>
+                                            <td class="muted-cell">@(i + 1)</td>
+                                            <td>
+                                                <div class="student-name">
+                                                    <div class="student-avatar">@Initials(hv.HoTen)</div>
+                                                    <div><b>@hv.HoTen</b><small>@hv.DiaChiHienTai</small></div>
+                                                </div>
+                                            </td>
+                                            <td>@hv.NgaySinh.ToString("dd/MM/yyyy")</td>
+                                            <td><span class="class-tag">@hv.Lop</span></td>
+                                            <td><b>@hv.DiemRenLuyen.ToString("0.0")</b><span class="muted-cell">/10</span></td>
+                                            <td><span class="@BadgeClass(hv.XepLoai)">@hv.XepLoai</span></td>
+                                            <td>
+                                                <div class="action-buttons">
+                                                    <button class="icon-button edit-button" title="Chỉnh sửa" @onclick="() => EditStudent(hv)">✎</button>
+                                                    <button class="icon-button delete-button" title="Xóa" @onclick="() => DeleteStudent(hv.Id)">⌫</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </section>
+                <p class="footnote">Lưu ý: Dữ liệu hiện được lưu trong bộ nhớ của ứng dụng, chưa lưu vào cơ sở dữ liệu.</p>
+            }
+
+            <footer class="page-footer">
+                <span>QUẢN LÝ RÈN LUYỆN HỌC VIÊN</span>
+                <span>Hệ thống quản lý nội bộ · Phiên bản 1.0</span>
+            </footer>
+        </main>
+    </div>
+</div>
+
+<style>
+    :root {
+        --green: #16834b;
+        --green-dark: #10673b;
+        --green-light: #e9f6ee;
+        --text: #1e3027;
+        --muted: #7d8b83;
+        --border: #e7ede8;
+        --background: #f5f8f5;
+    }
+
+    .app-page {
+        min-height: 100vh;
+        background: var(--background);
+        color: var(--text);
+        font-family: "Segoe UI", Arial, sans-serif;
+        font-size: 14px;
+    }
+
+    .topbar {
+        min-height: 78px;
+        background: #fff;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 32px;
+        gap: 20px;
+    }
+
+    .brand, .topbar-right, .student-name, .action-buttons {
+        display: flex;
+        align-items: center;
+    }
+
+    .brand {
+        gap: 13px;
+    }
+
+    .brand-logo {
+        display: grid;
+        place-items: center;
+        width: 43px;
+        height: 43px;
+        border-radius: 13px;
+        background: var(--green);
+        color: white;
+        font-size: 18px;
+        font-weight: 800;
+    }
+
+    .brand h2 {
+        font-size: 15px;
+        letter-spacing: .5px;
+        margin: 0 0 5px;
+    }
+
+    .brand span {
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: 1.3px;
+    }
+
+    .topbar-right {
+        gap: 22px;
+    }
+
+    .system-status {
+        color: #5e7567;
+        font-size: 12px;
+    }
+
+        .system-status span {
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            background: #21a564;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+    .user-avatar, .student-avatar {
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        background: var(--green-light);
+        color: var(--green);
+        font-weight: 700;
+    }
+
+    .page-layout {
+        display: flex;
+        min-height: calc(100vh - 78px);
+    }
+
+    .sidebar {
+        width: 245px;
+        flex-shrink: 0;
+        background: white;
+        border-right: 1px solid var(--border);
+        padding: 27px 16px 18px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .side-caption {
+        color: #9aa79e;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.1px;
+        padding: 0 12px;
+        margin-bottom: 12px;
+    }
+
+    .side-caption-second {
+        margin-top: 28px;
+    }
+
+    .nav-item {
+        border: 0;
+        border-radius: 10px;
+        padding: 12px 13px;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: transparent;
+        color: #607168;
+        text-align: left;
+        cursor: pointer;
+        margin: 3px 0;
+        font-size: 13px;
+        transition: .2s;
+    }
+
+        .nav-item span {
+            width: 18px;
+            text-align: center;
+            font-size: 17px;
+        }
+
+        .nav-item:hover {
+            background: #f0f7f2;
+            color: var(--green);
+        }
+
+        .nav-item.active {
+            background: var(--green-light);
+            color: var(--green-dark);
+            font-weight: 700;
+        }
+
+    .sidebar-note {
+        margin-top: auto;
+        background: #f1f8f3;
+        border: 1px solid #e2efe5;
+        border-radius: 14px;
+        padding: 16px;
+        line-height: 1.6;
+    }
+
+    .note-icon {
+        color: var(--green);
+        font-size: 22px;
+        margin-bottom: 9px;
+    }
+
+    .sidebar-note b {
+        font-size: 12px;
+    }
+
+    .sidebar-note p {
+        font-size: 11px;
+        color: #728278;
+        margin: 7px 0 0;
+    }
+
+    .sidebar-footer {
+        color: #a2ada5;
+        font-size: 10px;
+        letter-spacing: 1px;
+        padding: 23px 10px 0;
+    }
+
+    .main-content {
+        min-width: 0;
+        flex: 1;
+        padding: 26px 32px;
+    }
+
+    .breadcrumb {
+        font-size: 12px;
+        color: #87958b;
+        margin-bottom: 23px;
+    }
+
+        .breadcrumb span {
+            padding: 0 9px;
+            color: #bdc8c0;
+        }
+
+    .welcome-banner {
+        min-height: 220px;
+        background: linear-gradient(115deg, #126e40, #219657);
+        border-radius: 19px;
+        color: white;
+        padding: 31px 35px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .eyebrow {
+        font-size: 10px;
+        letter-spacing: 1.4px;
+        font-weight: 700;
+    }
+
+    .welcome-banner h1 {
+        font-size: clamp(23px, 2.4vw, 31px);
+        margin: 13px 0 10px;
+    }
+
+    .welcome-banner p {
+        color: #e0f1e5;
+        font-size: 13px;
+        line-height: 1.7;
+        max-width: 540px;
+    }
+
+    .banner-symbol {
+        width: 150px;
+        height: 150px;
+        flex-shrink: 0;
+        margin: 0 30px;
+        border: 1px solid #ffffff40;
+        background: #ffffff12;
+        color: #ffffffbd;
+        border-radius: 42px;
+        transform: rotate(-8deg);
+        display: grid;
+        place-items: center;
+        font-size: 83px;
+        font-weight: 300;
+    }
+
+    button {
+        font-family: inherit;
+    }
+
+    .btn-primary, .btn-secondary, .btn-outline, .btn-close, .icon-button {
+        border-radius: 9px;
+        cursor: pointer;
+        transition: background .18s, transform .18s;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .btn-primary {
+        padding: 11px 16px;
+        background: var(--green);
+        color: white;
+        border: 1px solid var(--green);
+    }
+
+    .welcome-banner .btn-primary {
+        background: white;
+        color: var(--green-dark);
+        border-color: white;
+        margin-top: 9px;
+    }
+
+    .btn-primary:hover {
+        background: var(--green-dark);
+        color: white;
+    }
+
+    .welcome-banner .btn-primary:hover {
+        background: #eaf6ee;
+        color: var(--green-dark);
+    }
+
+    .btn-secondary {
+        padding: 11px 17px;
+        background: white;
+        color: #5d6d63;
+        border: 1px solid #dce5de;
+    }
+
+    .btn-outline {
+        padding: 10px 14px;
+        background: white;
+        color: var(--green);
+        border: 1px solid #cfe3d5;
+    }
+
+        .btn-outline:hover, .btn-secondary:hover {
+            background: var(--green-light);
+        }
+
+    .btn-close {
+        background: #f4f7f4;
+        border: 0;
+        width: 32px;
+        height: 32px;
+        color: #728078;
+    }
+
+    .section-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        margin: 28px 0 17px;
+    }
+
+        .section-heading h2, .section-heading h1 {
+            font-size: 19px;
+            margin: 0 0 7px;
+        }
+
+        .section-heading p, .panel-heading p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+    .live-tag {
+        font-size: 9px;
+        letter-spacing: .5px;
+        color: var(--green);
+        background: var(--green-light);
+        padding: 8px 10px;
+        border-radius: 7px;
+        white-space: nowrap;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 15px;
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 19px;
+        min-width: 0;
+    }
+
+    .stat-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        font-size: 18px;
+        margin-bottom: 15px;
+    }
+
+    .green-icon {
+        color: #16834b;
+        background: #e9f6ee;
+    }
+
+    .blue-icon {
+        color: #3977c6;
+        background: #edf4ff;
+    }
+
+    .gold-icon {
+        color: #c18b20;
+        background: #fff6df;
+    }
+
+    .purple-icon {
+        color: #8864c7;
+        background: #f3edff;
+    }
+
+    .stat-label {
+        color: #7d8a81;
+        font-size: 11px;
+    }
+
+    .stat-number {
+        font-size: 28px;
+        font-weight: 750;
+        letter-spacing: -.5px;
+        margin: 8px 0;
+        overflow-wrap: anywhere;
+    }
+
+    .stat-foot {
+        color: #a0aaa3;
+        font-size: 10px;
+    }
+
+    .panel {
+        margin-top: 23px;
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    .panel-heading {
+        padding: 21px 23px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+
+        .panel-heading h2 {
+            font-size: 15px;
+            margin: 0 0 7px;
+        }
+
+    .empty-state {
+        padding: 42px 20px;
+        text-align: center;
+        color: #718078;
+    }
+
+        .empty-state > div {
+            font-size: 32px;
+            color: #a5cbb0;
+            margin-bottom: 12px;
+        }
+
+        .empty-state b {
+            color: #33483a;
+            font-size: 13px;
+        }
+
+        .empty-state p {
+            font-size: 12px;
+            margin: 8px 0 17px;
+        }
+
+    .table-wrap {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    thead {
+        background: #f8faf8;
+    }
+
+    th {
+        color: #89958c;
+        font-size: 9px;
+        letter-spacing: .55px;
+        font-weight: 700;
+        padding: 14px 16px;
+    }
+
+    td {
+        border-top: 1px solid #edf1ed;
+        padding: 14px 16px;
+        font-size: 12px;
+        color: #536258;
+    }
+
+        td b {
+            color: #2b3d31;
+        }
+
+    tbody tr:hover {
+        background: #fbfdfb;
+    }
+
+    .page-title-row {
+        margin-top: 3px;
+    }
+
+        .page-title-row h1 {
+            font-size: 25px;
+            margin: 7px 0;
+        }
+
+    .green-text {
+        color: var(--green) !important;
+    }
+
+    .compact-stats {
+        margin-bottom: 22px;
+    }
+
+        .compact-stats .stat-card {
+            padding: 17px 19px;
+        }
+
+        .compact-stats .stat-number {
+            font-size: 24px;
+            margin-bottom: 0;
+        }
+
+    .form-panel {
+        padding-bottom: 22px;
+    }
+
+        .form-panel .panel-heading {
+            border-bottom: 1px solid #edf1ed;
+            margin-bottom: 22px;
+        }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px 20px;
+        padding: 0 23px;
+    }
+
+    .form-field {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .full-field {
+        grid-column: 1 / -1;
+    }
+
+    .form-field label {
+        font-size: 12px;
+        font-weight: 650;
+        color: #425449;
+    }
+
+        .form-field label span {
+            color: #d44e4e;
+        }
+
+    .form-field input, .filter-bar input, .filter-bar select {
+        width: 100%;
+        box-sizing: border-box;
+        min-width: 0;
+        background: white;
+        border: 1px solid #dfe7e0;
+        border-radius: 9px;
+        padding: 11px 12px;
+        color: #33483a;
+        outline: none;
+        font: inherit;
+        font-size: 12px;
+    }
+
+        .form-field input:focus, .filter-bar input:focus, .filter-bar select:focus {
+            border-color: #55a979;
+            box-shadow: 0 0 0 3px #16834b12;
+        }
+
+    .form-field small {
+        color: #8a988e;
+        font-size: 10px;
+    }
+
+    .readonly-field {
+        border: 1px solid #e4ece5;
+        border-radius: 9px;
+        padding: 11px 12px;
+        background: #f7faf7;
+        color: var(--green-dark);
+        font-size: 12px;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 22px 23px 0;
+    }
+
+    .message-box {
+        margin: 0 23px 20px;
+        padding: 12px 14px;
+        background: #fff4e5;
+        color: #98631b;
+        border-radius: 8px;
+        font-size: 12px;
+    }
+
+    .filter-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 22px 20px;
+    }
+
+    .search-box {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+        min-width: 180px;
+    }
+
+        .search-box span {
+            color: #809187;
+            font-size: 21px;
+        }
+
+    .filter-bar select {
+        width: auto;
+        max-width: 170px;
+    }
+
+    .student-name {
+        gap: 10px;
+    }
+
+    .student-avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        font-size: 10px;
+    }
+
+    .student-name > div:last-child {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .student-name small {
+        max-width: 180px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: #8d9a90;
+        font-size: 10px;
+    }
+
+    .class-tag {
+        padding: 5px 8px;
+        border-radius: 6px;
+        background: #f0f5f1;
+        color: #52705b;
+        font-size: 10px;
+    }
+
+    .muted-cell {
+        color: #9ba79e;
+    }
+
+    .status-badge {
+        padding: 5px 8px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 650;
+    }
+
+    .badge-tot {
+        color: #16834b;
+        background: #e8f6ed;
+    }
+
+    .badge-kha {
+        color: #3875b9;
+        background: #eaf2ff;
+    }
+
+    .badge-trungbinh {
+        color: #a7791c;
+        background: #fff4d9;
+    }
+
+    .badge-yeu {
+        color: #bf4d4d;
+        background: #ffeded;
+    }
+
+    .action-buttons {
+        gap: 6px;
+    }
+
+    .icon-button {
+        border: 1px solid #e5ece6;
+        width: 30px;
+        height: 30px;
+        background: white;
+        font-size: 16px;
+    }
+
+    .edit-button {
+        color: #36815a;
+    }
+
+        .edit-button:hover {
+            background: #e9f6ee;
+        }
+
+    .delete-button {
+        color: #c45858;
+    }
+
+        .delete-button:hover {
+            background: #fff0f0;
+        }
+
+    .footnote {
+        color: #8b998f;
+        font-size: 11px;
+        margin: 13px 2px;
+    }
+
+    .page-footer {
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+        border-top: 1px solid #e6ece7;
+        margin-top: 35px;
+        padding-top: 19px;
+        color: #9aa69d;
+        font-size: 9px;
+        letter-spacing: .4px;
+    }
+
+    @@media (max-width: 1050px) {
+        .sidebar {
+            width: 195px;
+        }
+
+        .main-content {
+            padding: 23px 20px;
+        }
+
+        .stats-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .filter-bar {
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex-basis: 100%;
+        }
+
+        .filter-bar select {
+            flex: 1;
+            max-width: none;
+        }
+    }
+
+    @@media (max-width: 700px) {
+        .topbar {
+            padding: 13px 16px;
+        }
+
+        .brand h2 {
+            font-size: 12px;
+        }
+
+        .brand span, .system-status {
+            display: none;
+        }
+
+        .page-layout {
+            display: block;
+        }
+
+        .sidebar {
+            width: auto;
+            padding: 10px;
+            flex-direction: row;
+            align-items: center;
+            gap: 6px;
+            overflow-x: auto;
+            border-right: 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .side-caption, .sidebar-note, .sidebar-footer {
+            display: none;
+        }
+
+        .nav-item {
+            width: auto;
+            white-space: nowrap;
+            padding: 10px;
+        }
+
+        .main-content {
+            padding: 18px 12px;
+        }
+
+        .welcome-banner {
+            padding: 24px 20px;
+        }
+
+        .banner-symbol {
+            display: none;
+        }
+
+        .stats-grid {
+            gap: 10px;
+        }
+
+        .stat-card {
+            padding: 14px;
+        }
+
+        .stat-number {
+            font-size: 24px;
+        }
+
+        .section-heading {
+            align-items: flex-start;
+        }
+
+        .page-title-row {
+            flex-direction: column;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+            padding: 0 15px;
+        }
+
+        .full-field {
+            grid-column: auto;
+        }
+
+        .form-actions {
+            padding-left: 15px;
+            padding-right: 15px;
+        }
+
+        .panel-heading {
+            padding: 17px 15px;
+        }
+
+        .filter-bar {
+            padding: 0 15px 16px;
+        }
+
+        .page-footer {
+            line-height: 1.7;
+        }
+    }
+    /* Phong cách quản lý rèn luyện CAND */
+    .app-page {
+        background: #f4f7f3;
+        color: #183d2b;
+    }
+
+    .topbar {
+        background: linear-gradient(100deg, #103d2a, #17633e);
+        border-bottom: 3px solid #e4bd43;
+        color: white;
+    }
+
+    .brand-logo-image {
+        width: 86px;
+        height: 82px;
+        object-fit: contain;
+        object-position: center;
+        flex-shrink: 0;
+        background: transparent;
+        border-radius: 0;
+        padding: 0;
+        box-sizing: border-box;
+        border: 0;
+    }
+
+    .academy-logo {
+        width: 86px;
+        height: 82px;
+    }
+
+    .brand {
+        gap: 18px;
+    }
+
+    .brand-text {
+        margin-left: 4px;
+    }
+
+    .brand-divider {
+        width: 1px;
+        height: 51px;
+        background: #ffffff55;
+    }
+
+    .brand-text h2 {
+        color: #ffe58b;
+        font-size: 16px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        margin: 0 0 5px;
+    }
+
+    .brand-text span {
+        color: white;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: .8px;
+    }
+
+    .brand-text small {
+        display: block;
+        color: #cbded0;
+        font-size: 9px;
+        margin-top: 5px;
+        letter-spacing: 1px;
+    }
+
+    .sidebar {
+        background: #123e2b;
+        border-right: 1px solid #285a40;
+    }
+
+    .nav-item {
+        color: #e0ebe2;
+        border-radius: 8px;
+    }
+
+        .nav-item:hover {
+            background: #22583b;
+            color: #ffe38a;
+        }
+
+        .nav-item.active {
+            background: #e9f3e8;
+            color: #145333;
+            border-left: 4px solid #d9ad27;
+        }
+
+    .welcome-banner {
+        background: linear-gradient(120deg, #104a30, #187849);
+        border-bottom: 4px solid #d5b13d;
+    }
+
+    .btn-primary {
+        background: #176b40;
+        border-color: #176b40;
+        border-radius: 8px;
+    }
+
+        .btn-primary:hover {
+            background: #104a30;
+        }
+
+    .stat-card, .panel {
+        border-radius: 12px;
+        border-color: #dce7dc;
+        box-shadow: 0 3px 12px #193b2510;
+    }
+
+    .status-badge {
+        border-radius: 5px;
+        font-weight: 700;
+    }
+
+
+    /* Giao diện tinh chỉnh theo mẫu Học viện ANND */
+    .app-page {
+        background: #f1f7f4;
+        color: #123f32;
+    }
+
+    .topbar {
+        min-height: 100px;
+        padding: 0 30px;
+        background: linear-gradient(105deg, #064b35, #087447);
+        border-bottom: 2px solid #d6b84a;
+        color: #fff;
+    }
+
+    .brand-logo-image {
+        width: 86px;
+        height: 86px;
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        padding: 0;
+        object-fit: contain;
+    }
+
+    .academy-logo {
+        width: 86px;
+        height: 86px;
+    }
+
+    .brand-divider {
+        width: 1px;
+        height: 62px;
+        background: #ffffff65;
+    }
+
+    .brand-text h2 {
+        color: #fff;
+        font-size: 21px;
+        font-weight: 800;
+        letter-spacing: .2px;
+        margin: 0 0 7px;
+    }
+
+    .brand-text span {
+        display: block;
+        color: #e8f4ec;
+        font-size: 12px;
+        letter-spacing: .3px;
+    }
+
+    .brand-text small {
+        display: block;
+        color: #f4d977;
+        font-size: 10px;
+        margin-top: 6px;
+        letter-spacing: .8px;
+    }
+
+    .system-status {
+        color: #e6f4eb;
+    }
+
+    .user-avatar {
+        border-radius: 50%;
+        background: #f5dc79;
+        color: #12553a;
+    }
+
+    .page-layout {
+        min-height: calc(100vh - 100px);
+    }
+
+    .sidebar {
+        width: 272px;
+        background: linear-gradient(180deg, #064333, #07392e);
+        border-right: 0;
+        color: white;
+        padding: 25px 16px 18px;
+    }
+
+    .side-caption {
+        color: #a7c9b6;
+    }
+
+    .nav-item {
+        color: #f0f7f2;
+        border-radius: 9px;
+        padding: 14px 13px;
+        font-size: 14px;
+    }
+
+        .nav-item:hover {
+            background: #175b43;
+            color: #ffe58b;
+        }
+
+        .nav-item.active {
+            background: #d9eee3;
+            color: #08613d;
+            border-left: 4px solid #e5c54e;
+        }
+
+    .sidebar-note {
+        background: #064b39;
+        border: 1px solid #39735c;
+        color: #ffe27a;
+        border-radius: 14px;
+    }
+
+        .sidebar-note p {
+            color: #e0eee5;
+        }
+
+    .sidebar-footer {
+        color: #9dbca9;
+    }
+
+    .main-content {
+        padding: 22px 24px 28px;
+    }
+
+    .breadcrumb {
+        color: #507567;
+        margin-bottom: 18px;
+    }
+
+    .welcome-banner {
+        min-height: 178px;
+        padding: 27px 28px;
+        border-radius: 12px;
+        background: linear-gradient(100deg, rgba(0, 75, 48, .98) 0%, rgba(0, 111, 68, .94) 57%, rgba(10, 119, 76, .72) 100%), radial-gradient(circle at 85% 50%, #69a982 0, #126c49 38%, #075036 70%);
+        border-bottom: 4px solid #d7b747;
+    }
+
+    .eyebrow {
+        color: #ffe17b;
+        font-size: 12px;
+        letter-spacing: .5px;
+    }
+
+    .welcome-banner h1 {
+        color: white;
+        font-size: clamp(25px, 2.1vw, 32px);
+        margin: 10px 0;
+    }
+
+    .welcome-banner p {
+        color: #e5f4eb;
+        font-size: 15px;
+        line-height: 1.65;
+        max-width: 650px;
+    }
+
+    .banner-symbol {
+        width: 320px;
+        height: auto;
+        min-height: 90px;
+        margin: 0 18px;
+        padding: 12px;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: #f7e9ae;
+        transform: rotate(-5deg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-family: Georgia, serif;
+        font-size: 25px;
+        font-style: italic;
+        font-weight: 600;
+    }
+
+        .banner-symbol span {
+            display: block;
+            border-bottom: 2px solid #f7e9ae;
+            padding: 0 0 8px;
+        }
+
+    .stats-grid {
+        gap: 16px;
+    }
+
+    .stat-card, .panel {
+        border-radius: 12px;
+        border-color: #e0ebe4;
+        box-shadow: 0 3px 12px rgba(13, 65, 42, .06);
+    }
+
+    .btn-primary {
+        background: #08764a;
+        border-color: #08764a;
+        border-radius: 8px;
+    }
+
+        .btn-primary:hover {
+            background: #055c3a;
+        }
+
+    @@media (max-width: 900px) {
+        .topbar {
+            padding: 12px 16px;
+            flex-wrap: wrap;
+        }
+
+        .brand-logo-image, .academy-logo {
+            width: 58px;
+            height: 58px;
+        }
+
+        .brand-text h2 {
+            font-size: 15px;
+        }
+
+        .brand-text span {
+            font-size: 9px;
+        }
+
+        .sidebar {
+            width: 210px;
+        }
+
+        .banner-symbol {
+            display: none;
+        }
+    }
+</style>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        hocViens = await DbContext.HocViens
+            .AsNoTracking()
+            .OrderBy(x => x.Id)
+            .ToListAsync();
+    }
+    private List<HocVien> hocViens = new();
+    private HocVien hocVien = new();
+    private int? editingId;
+    private int nextId = 1;
+
+    private bool showDashboard = true;
+    private bool showForm;
+    private string searchText = "";
+    private string filterClass = "";
+    private string filterRating = "";
+    private string message = "";
+
+    private string CurrentSection => showDashboard ? "Tổng quan" : "Quản lý học viên";
+
+    private double AverageScore => hocViens.Count == 0
+    ? 0
+    : hocViens.Average(x => x.DiemRenLuyen);
+
+    private List<HocVien> FilteredStudents => hocViens
+    .Where(x =>
+    {
+        var keyword = searchText.Trim();
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            bool matchText =
+                (x.HoTen ?? "").Contains(keyword,
+                    StringComparison.OrdinalIgnoreCase)
+                || (x.Lop ?? "").Contains(keyword,
+                    StringComparison.OrdinalIgnoreCase)
+                || (x.DiaChiHienTai ?? "").Contains(keyword,
+                    StringComparison.OrdinalIgnoreCase);
+
+            bool matchDate =
+                x.NgaySinh.ToString("dd/MM/yyyy").Contains(keyword)
+                || x.NgaySinh.ToString("MM/yyyy").Contains(keyword)
+                || x.NgaySinh.ToString("MM").Contains(keyword)
+                || x.NgaySinh.ToString("yyyy").Contains(keyword);
+
+            bool matchScore =
+                x.DiemRenLuyen.ToString().Contains(keyword)
+                || x.DiemRenLuyen.ToString("0.0").Contains(keyword);
+
+            if (!matchText && !matchDate && !matchScore)
+                return false;
+        }
+
+        bool matchClass =
+            string.IsNullOrWhiteSpace(filterClass)
+            || string.Equals(x.Lop, filterClass,
+                StringComparison.OrdinalIgnoreCase);
+
+        bool matchRating =
+            string.IsNullOrWhiteSpace(filterRating)
+            || x.XepLoai == filterRating;
+
+        return matchClass && matchRating;
+    })
+    .OrderBy(x => x.HoTen)
+    .ToList();
+
+    private string NavClass(bool students) =>
+        "nav-item " + ((!showDashboard && students) || (showDashboard && !students) ? "active" : "");
+
+    private void ShowDashboard()
+    {
+        showDashboard = true;
+        showForm = false;
+        message = "";
+    }
+
+    private void ShowStudents()
+    {
+        showDashboard = false;
+        message = "";
+    }
+
+    private void NavigateTo(string url)
+    {
+        Navigation.NavigateTo(url);
+    }
+
+    private void NewStudent()
+    {
+        hocVien = new HocVien();
+        editingId = null;
+        showForm = true;
+        message = "";
+    }
+
+    private void EditStudent(HocVien hv)
+    {
+        hocVien = new HocVien
+        {
+            Id = hv.Id,
+            HoTen = hv.HoTen,
+            NgaySinh = hv.NgaySinh,
+            Lop = hv.Lop,
+            DiaChiHienTai = hv.DiaChiHienTai,
+            DiemRenLuyen = hv.DiemRenLuyen
+        };
+
+        editingId = hv.Id;
+        showForm = true;
+        message = "";
+    }
+
+    private async Task SaveStudent()
+    {
+        if (string.IsNullOrWhiteSpace(hocVien.HoTen))
+        {
+            message = "Vui lòng nhập họ và tên học viên.";
+            return;
+        }
+
+        if (hocVien.NgaySinh == default || hocVien.NgaySinh.Date > DateTime.Today)
+        {
+            message = "Vui lòng nhập ngày sinh hợp lệ.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(hocVien.Lop))
+        {
+            message = "Vui lòng nhập lớp của học viên.";
+            return;
+        }
+
+        if (hocVien.DiemRenLuyen < 0 || hocVien.DiemRenLuyen > 10)
+        {
+            message = "Điểm rèn luyện phải nằm trong khoảng từ 0 đến 10.";
+            return;
+        }
+
+        if (editingId.HasValue)
+        {
+            var existing = await DbContext.HocViens.FindAsync(editingId.Value);
+
+            if (existing is null)
+            {
+                message = "Không tìm thấy học viên cần sửa.";
+                return;
+            }
+
+            existing.HoTen = hocVien.HoTen.Trim();
+            existing.NgaySinh = hocVien.NgaySinh;
+            existing.Lop = hocVien.Lop.Trim();
+            existing.DiaChiHienTai = hocVien.DiaChiHienTai?.Trim() ?? "";
+            existing.DiemRenLuyen = hocVien.DiemRenLuyen;
+        }
+        else
+        {
+            DbContext.HocViens.Add(new HocVien
+            {
+                HoTen = hocVien.HoTen.Trim(),
+                NgaySinh = hocVien.NgaySinh,
+                Lop = hocVien.Lop.Trim(),
+                DiaChiHienTai = hocVien.DiaChiHienTai?.Trim() ?? "",
+                DiemRenLuyen = hocVien.DiemRenLuyen
+            });
+        }
+
+        await DbContext.SaveChangesAsync();
+
+        hocViens = await DbContext.HocViens
+            .AsNoTracking()
+            .OrderBy(x => x.Id)
+            .ToListAsync();
+
+        showForm = false;
+        editingId = null;
+        hocVien = new HocVien();
+        message = "";
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+        editingId = null;
+        hocVien = new HocVien();
+        message = "";
+    }
+
+    private async Task DeleteStudent(int id)
+    {
+        var hv = await DbContext.HocViens.FindAsync(id);
+
+        if (hv is not null)
+        {
+            DbContext.HocViens.Remove(hv);
+            await DbContext.SaveChangesAsync();
+
+            hocViens = await DbContext.HocViens
+                .AsNoTracking()
+                .OrderBy(x => x.Id)
+                .ToListAsync();
+        }
+    }
+
+    private void ClearFilters()
+    {
+        searchText = "";
+        filterClass = "";
+        filterRating = "";
+    }
+
+    private string BadgeClass(string rating) => rating switch
+    {
+        "Xuất sắc" => "status-badge badge-tot",
+        "Giỏi" => "status-badge badge-tot",
+        "Khá" => "status-badge badge-kha",
+        "Trung bình" => "status-badge badge-trungbinh",
+        "Không xếp loại" => "status-badge badge-yeu",
+        _ => "status-badge badge-yeu"
+    };
+
+    private string Initials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "HV";
+
+        var words = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return words.Length == 1
+            ? words[0][..1].ToUpper()
+            : (words[0][..1] + words[^1][..1]).ToUpper();
+    }
+}

@@ -1,0 +1,1300 @@
+﻿@page "/ky-danh-gia"
+@rendermode InteractiveServer
+
+@using Microsoft.EntityFrameworkCore
+@using MyWebApp.Models
+@inject MyWebApp.Data.AppDbContext DbContext
+
+<PageTitle>Quản lý kỳ đánh giá</PageTitle>
+
+<div class="app-page criteria-page">
+    <header class="topbar">
+        <div class="brand">
+            <img class="brand-logo-image" src="images/Logo_Bộ_Công_an_VN.png" alt="Biểu trưng Công an nhân dân" />
+            <div class="brand-divider"></div>
+            <img class="brand-logo-image academy-logo" src="images/Logo_hoc_vien_ANND.png" alt="Logo Học viện An ninh nhân dân" />
+            <div class="brand-text">
+                <h2>HỌC VIỆN AN NINH NHÂN DÂN</h2>
+                <small>HỆ THỐNG QUẢN LÝ RÈN LUYỆN HỌC VIÊN</small>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <span class="system-status"><span></span> HỆ THỐNG QUẢN LÝ</span>
+            <div class="user-avatar">HV</div>
+        </div>
+    </header>
+
+    <div class="page-layout">
+        <aside class="sidebar">
+            <div class="side-caption">MENU CHÍNH</div>
+            <a class="nav-item" href="/dshocvien"><span>⌂</span> Trang chủ / Học viên</a>
+            <div class="side-caption side-caption-second">QUẢN LÝ RÈN LUYỆN</div>
+            <a class="nav-item active" href="/ky-danh-gia"><span>▣</span> Kỳ đánh giá</a>
+            <a class="nav-item" href="/quan-ly-tieu-chi"><span>✓</span> Tiêu chí đánh giá</a>
+            <a class="nav-item" href="/bao-cao-ket-qua"><span>▤</span> Báo cáo kết quả</a>
+            <div class="sidebar-note">
+                <div class="note-icon">✦</div>
+                <b>Quản lý kỳ đánh giá</b>
+                <p>Tạo lập, cập nhật và kiểm soát trạng thái các kỳ đánh giá rèn luyện học viên.</p>
+            </div>
+            <div class="sidebar-footer">HỌC VIỆN AN NINH NHÂN DÂN</div>
+        </aside>
+
+        <main class="main-content">
+            <div class="breadcrumb">Trang chủ <span>/</span> Quản lý rèn luyện <span>/</span> Kỳ đánh giá</div>
+
+            <div class="section-heading page-title-row">
+                <div>
+                    <span class="eyebrow green-text">QUẢN LÝ RÈN LUYỆN</span>
+                    <h1>Quản lý kỳ đánh giá</h1>
+                    <p>Tạo, chỉnh sửa và quản lý trạng thái các kỳ đánh giá học viên.</p>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(thongBao))
+            {
+                <div class="notice-box @loaiThongBao">
+                    <span>@thongBao</span>
+                    <button type="button" class="notice-close" @onclick="() => thongBao = string.Empty">×</button>
+                </div>
+            }
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon green-icon">▣</div>
+                    <div class="stat-label">Tổng số kỳ đánh giá</div>
+                    <div class="stat-number">@cacKyDanhGia.Count</div>
+                    <div class="stat-foot">Các kỳ đã được tạo trong hệ thống</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon blue-icon">◷</div>
+                    <div class="stat-label">Kỳ đang mở</div>
+                    <div class="stat-number">@cacKyDanhGia.Count(x => !x.DaKhoa)</div>
+                    <div class="stat-foot">Có thể cập nhật thông tin kỳ</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon gold-icon">▣</div>
+                    <div class="stat-label">Kỳ đã khóa</div>
+                    <div class="stat-number">@cacKyDanhGia.Count(x => x.DaKhoa)</div>
+                    <div class="stat-foot">Đã hoàn tất hoặc tạm khóa đánh giá</div>
+                </div>
+            </div>
+
+            <section class="panel form-panel">
+                <div class="panel-heading">
+                    <div>
+                        <span class="eyebrow green-text">THIẾT LẬP THỜI GIAN</span>
+                        <h2>@(dangSua ? "Cập nhật kỳ đánh giá" : "Tạo kỳ đánh giá mới")</h2>
+                        <p>Nhập tên kỳ và khoảng thời gian thực hiện đánh giá.</p>
+                    </div>
+                    @if (dangSua)
+                    {
+                        <button type="button" class="btn-close" title="Hủy chỉnh sửa" @onclick="HuySua">×</button>
+                    }
+                </div>
+
+                <EditForm Model="@model" OnValidSubmit="@LuuKyDanhGia">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+                    <div class="form-grid">
+                        <div class="form-field full-field">
+                            <label>Tên kỳ đánh giá <span>*</span></label>
+                            <InputText class="form-control-custom" @bind-Value="model.TenKy"
+                                       placeholder="Ví dụ: Học kỳ I năm học 2026-2027" />
+                        </div>
+                        <div class="form-field">
+                            <label>Ngày bắt đầu <span>*</span></label>
+                            <InputDate class="form-control-custom" @bind-Value="model.NgayBatDau" />
+                        </div>
+                        <div class="form-field">
+                            <label>Ngày kết thúc <span>*</span></label>
+                            <InputDate class="form-control-custom" @bind-Value="model.NgayKetThuc" />
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        @if (dangSua)
+                        {
+                            <button type="button" class="btn-secondary" @onclick="HuySua">Hủy sửa</button>
+                        }
+                        <button type="submit" class="btn-primary">@(dangSua ? "✓ Lưu thay đổi" : "＋ Tạo kỳ đánh giá")</button>
+                    </div>
+                </EditForm>
+            </section>
+
+            <section class="panel">
+                <div class="panel-heading">
+                    <div>
+                        <h2>Danh sách các kỳ đánh giá</h2>
+                        <p>Theo dõi thời gian và trạng thái hoạt động của từng kỳ.</p>
+                    </div>
+                    <span class="live-tag">● @cacKyDanhGia.Count kỳ đánh giá</span>
+                </div>
+
+                @if (cacKyDanhGia.Count == 0)
+                {
+                    <div class="empty-state">
+                        <div>▣</div>
+                        <b>Chưa có kỳ đánh giá nào</b>
+                        <p>Tạo kỳ đánh giá đầu tiên để bắt đầu quản lý rèn luyện học viên.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>STT</th>
+                                    <th>TÊN KỲ ĐÁNH GIÁ</th>
+                                    <th>NGÀY BẮT ĐẦU</th>
+                                    <th>NGÀY KẾT THÚC</th>
+                                    <th>TRẠNG THÁI</th>
+                                    <th>THAO TÁC</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < cacKyDanhGia.Count; i++)
+                                {
+                                    var ky = cacKyDanhGia[i];
+                                    <tr>
+                                        <td><span class="order-tag">@(i + 1)</span></td>
+                                        <td><b class="criterion-name">@ky.TenKy</b></td>
+                                        <td>@ky.NgayBatDau.ToString("dd/MM/yyyy")</td>
+                                        <td>@ky.NgayKetThuc.ToString("dd/MM/yyyy")</td>
+                                        <td>
+                                            @if (ky.DaKhoa)
+                                            {
+                                                <span class="status-badge status-inactive">Đã khóa</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="status-badge status-active">Đang mở</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button type="button" class="icon-button edit-button" title="Chỉnh sửa" @onclick="() => SuaKyDanhGia(ky)">✎</button>
+                                                @if (ky.DaKhoa)
+                                                {
+                                                    <button type="button" class="state-button" @onclick="() => DoiTrangThai(ky)">Mở lại</button>
+                                                }
+                                                else
+                                                {
+                                                    <button type="button" class="state-button lock-button" @onclick="() => DoiTrangThai(ky)">Khóa kỳ</button>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+
+            <footer class="page-footer">
+                <span>QUẢN LÝ RÈN LUYỆN HỌC VIÊN</span>
+                <span>Hệ thống quản lý nội bộ · Phiên bản 1.0</span>
+            </footer>
+        </main>
+    </div>
+</div>
+
+<style>
+    :root {
+        --green: #16834b;
+        --green-dark: #10673b;
+        --green-light: #e9f6ee;
+        --text: #1e3027;
+        --muted: #7d8b83;
+        --border: #e7ede8;
+        --background: #f5f8f5;
+    }
+
+    .criteria-page {
+        min-height: 100vh;
+        background: var(--background);
+        color: var(--text);
+        font-family: "Segoe UI",Arial,sans-serif;
+        font-size: 14px;
+    }
+
+        .criteria-page * {
+            box-sizing: border-box;
+        }
+
+    .topbar {
+        min-height: 78px;
+        background: #fff;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 32px;
+        gap: 20px;
+    }
+
+    .brand, .topbar-right {
+        display: flex;
+        align-items: center;
+    }
+
+    .brand {
+        gap: 13px;
+        min-width: 0;
+    }
+
+    .brand-logo-image {
+        width: 45px;
+        height: 45px;
+        object-fit: contain;
+    }
+
+    .academy-logo {
+        width: 48px;
+    }
+
+    .brand-divider {
+        height: 42px;
+        width: 1px;
+        background: var(--border);
+    }
+
+    .brand-text h2 {
+        font-size: 15px;
+        letter-spacing: .5px;
+        margin: 0 0 5px;
+        color: #24372b;
+    }
+
+    .brand-text small {
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: 1.1px;
+    }
+
+    .topbar-right {
+        gap: 22px;
+    }
+
+    .system-status {
+        color: #5e7567;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+        .system-status span {
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            background: #21a564;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+    .user-avatar {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        background: var(--green-light);
+        color: var(--green);
+        font-weight: 700;
+    }
+
+    .page-layout {
+        display: flex;
+        min-height: calc(100vh - 78px);
+    }
+
+    .sidebar {
+        width: 245px;
+        flex-shrink: 0;
+        background: white;
+        border-right: 1px solid var(--border);
+        padding: 27px 16px 18px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .side-caption {
+        color: #9aa79e;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.1px;
+        padding: 0 12px;
+        margin-bottom: 12px;
+    }
+
+    .side-caption-second {
+        margin-top: 28px;
+    }
+
+    .nav-item {
+        text-decoration: none;
+        border: 0;
+        border-radius: 10px;
+        padding: 12px 13px;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        background: transparent;
+        color: #607168;
+        margin: 3px 0;
+        font-size: 13px;
+        transition: .2s;
+    }
+
+        .nav-item span {
+            width: 18px;
+            text-align: center;
+            font-size: 17px;
+        }
+
+        .nav-item:hover {
+            background: #f0f7f2;
+            color: var(--green);
+        }
+
+        .nav-item.active {
+            background: var(--green-light);
+            color: var(--green-dark);
+            font-weight: 700;
+        }
+
+    .sidebar-note {
+        margin-top: auto;
+        background: #f1f8f3;
+        border: 1px solid #e2efe5;
+        border-radius: 14px;
+        padding: 16px;
+        line-height: 1.6;
+    }
+
+    .note-icon {
+        color: var(--green);
+        font-size: 22px;
+        margin-bottom: 9px;
+    }
+
+    .sidebar-note b {
+        font-size: 12px;
+    }
+
+    .sidebar-note p {
+        font-size: 11px;
+        color: #728278;
+        margin: 7px 0 0;
+    }
+
+    .sidebar-footer {
+        color: #a2ada5;
+        font-size: 10px;
+        letter-spacing: 1px;
+        padding: 23px 10px 0;
+    }
+
+    .main-content {
+        min-width: 0;
+        flex: 1;
+        padding: 26px 32px;
+    }
+
+    .breadcrumb {
+        font-size: 12px;
+        color: #87958b;
+        margin-bottom: 23px;
+    }
+
+        .breadcrumb span {
+            padding: 0 9px;
+            color: #bdc8c0;
+        }
+
+    .section-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        margin: 3px 0 20px;
+    }
+
+        .section-heading h1 {
+            font-size: 25px;
+            margin: 7px 0;
+            color: #24372b;
+        }
+
+        .section-heading p, .panel-heading p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+    .eyebrow {
+        font-size: 10px;
+        letter-spacing: 1.4px;
+        font-weight: 700;
+    }
+
+    .green-text {
+        color: var(--green) !important;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3,minmax(0,1fr));
+        gap: 15px;
+    }
+
+    .stat-card {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 19px;
+        min-width: 0;
+    }
+
+    .stat-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+        font-size: 18px;
+        margin-bottom: 15px;
+    }
+
+    .green-icon {
+        color: #16834b;
+        background: #e9f6ee;
+    }
+
+    .blue-icon {
+        color: #3977c6;
+        background: #edf4ff;
+    }
+
+    .gold-icon {
+        color: #c18b20;
+        background: #fff6df;
+    }
+
+    .stat-label {
+        color: #7d8a81;
+        font-size: 11px;
+    }
+
+    .stat-number {
+        font-size: 28px;
+        font-weight: 750;
+        letter-spacing: -.5px;
+        margin: 8px 0;
+        overflow-wrap: anywhere;
+    }
+
+    .stat-foot {
+        color: #a0aaa3;
+        font-size: 10px;
+    }
+
+    .panel {
+        margin-top: 23px;
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    .panel-heading {
+        padding: 21px 23px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+
+        .panel-heading h2 {
+            font-size: 15px;
+            margin: 0 0 7px;
+            color: #2b3d31;
+        }
+
+    .live-tag {
+        font-size: 9px;
+        letter-spacing: .5px;
+        color: var(--green);
+        background: var(--green-light);
+        padding: 8px 10px;
+        border-radius: 7px;
+        white-space: nowrap;
+    }
+
+    .form-panel .panel-heading {
+        border-bottom: 1px solid #edf1ed;
+        margin-bottom: 22px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: 18px 20px;
+        padding: 0 23px;
+    }
+
+    .form-field {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .full-field {
+        grid-column: 1/-1;
+    }
+
+    .form-field label {
+        font-size: 12px;
+        font-weight: 650;
+        color: #425449;
+    }
+
+        .form-field label span {
+            color: #d44e4e;
+        }
+
+    .form-control-custom {
+        width: 100%;
+        min-width: 0;
+        background: white;
+        border: 1px solid #dfe7e0;
+        border-radius: 9px;
+        padding: 11px 12px;
+        color: #33483a;
+        outline: none;
+        font: inherit;
+        font-size: 12px;
+    }
+
+        .form-control-custom:focus {
+            border-color: #55a979;
+            box-shadow: 0 0 0 3px #16834b12;
+        }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 22px 23px;
+    }
+
+    button {
+        font-family: inherit;
+    }
+
+    .btn-primary, .btn-secondary, .btn-close, .icon-button, .state-button {
+        border-radius: 9px;
+        cursor: pointer;
+        transition: background .18s,transform .18s;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .btn-primary {
+        padding: 11px 16px;
+        background: var(--green);
+        color: white;
+        border: 1px solid var(--green);
+    }
+
+        .btn-primary:hover {
+            background: var(--green-dark);
+        }
+
+    .btn-secondary {
+        padding: 11px 17px;
+        background: white;
+        color: #5d6d63;
+        border: 1px solid #dce5de;
+    }
+
+        .btn-secondary:hover {
+            background: var(--green-light);
+        }
+
+    .btn-close {
+        background: #f4f7f4;
+        border: 0;
+        width: 32px;
+        height: 32px;
+        color: #728078;
+        font-size: 18px;
+    }
+
+    .notice-box {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+        padding: 12px 15px;
+        margin-bottom: 18px;
+        border-radius: 9px;
+        font-size: 12px;
+    }
+
+    .alert-success {
+        background: #e9f6ee;
+        color: #176b3e;
+        border: 1px solid #cfe8d7;
+    }
+
+    .alert-danger {
+        background: #fff0ef;
+        color: #a83e37;
+        border: 1px solid #f3d2cf;
+    }
+
+    .alert-warning {
+        background: #fff6df;
+        color: #936b1c;
+        border: 1px solid #f1e2b9;
+    }
+
+    .alert-info {
+        background: #edf4ff;
+        color: #35649d;
+        border: 1px solid #d8e6fa;
+    }
+
+    .notice-close {
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font-size: 20px;
+        cursor: pointer;
+    }
+
+    .table-wrap {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        min-width: 850px;
+    }
+
+    thead {
+        background: #f8faf8;
+    }
+
+    th {
+        color: #89958c;
+        font-size: 9px;
+        letter-spacing: .55px;
+        font-weight: 700;
+        padding: 14px 16px;
+        white-space: nowrap;
+    }
+
+    td {
+        border-top: 1px solid #edf1ed;
+        padding: 14px 16px;
+        font-size: 12px;
+        color: #536258;
+        vertical-align: middle;
+    }
+
+        td b {
+            color: #2b3d31;
+        }
+
+    tbody tr:hover {
+        background: #fbfdfb;
+    }
+
+    .order-tag {
+        display: inline-grid;
+        place-items: center;
+        min-width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        background: #f0f7f2;
+        color: var(--green);
+        font-weight: 700;
+    }
+
+    .criterion-name {
+        color: #2b3d31;
+    }
+
+    .status-badge {
+        display: inline-block;
+        border-radius: 20px;
+        padding: 6px 10px;
+        font-size: 10px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .status-active {
+        background: #e9f6ee;
+        color: #16834b;
+    }
+
+    .status-inactive {
+        background: #f0f2f1;
+        color: #7c8981;
+    }
+
+    .action-buttons {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        white-space: nowrap;
+    }
+
+    .icon-button {
+        width: 31px;
+        height: 31px;
+        border: 1px solid transparent;
+        display: grid;
+        place-items: center;
+        font-size: 15px;
+    }
+
+    .edit-button {
+        background: #edf4ff;
+        color: #3977c6;
+        border-color: #dce9fb;
+    }
+
+    .state-button {
+        border: 1px solid #dce8df;
+        background: #f5faf6;
+        color: #39734e;
+        padding: 7px 10px;
+    }
+
+        .state-button:hover {
+            background: #e9f6ee;
+        }
+
+    .lock-button {
+        background: #fff6df;
+        border-color: #f1e2b9;
+        color: #936b1c;
+    }
+
+    .empty-state {
+        padding: 42px 20px;
+        text-align: center;
+        color: #718078;
+    }
+
+        .empty-state > div {
+            font-size: 32px;
+            color: #a5cbb0;
+            margin-bottom: 12px;
+        }
+
+        .empty-state b {
+            color: #33483a;
+            font-size: 13px;
+        }
+
+        .empty-state p {
+            font-size: 12px;
+            margin: 8px 0 0;
+        }
+
+    .page-footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        color: #9aa79e;
+        font-size: 10px;
+        letter-spacing: .4px;
+        padding: 25px 2px 5px;
+    }
+
+    @@media(max-width:1000px) {
+        .sidebar {
+            width: 205px;
+        }
+
+        .main-content {
+            padding: 22px;
+        }
+    }
+
+    @@media(max-width:700px) {
+        .topbar {
+            padding: 12px 16px;
+        }
+
+        .brand-logo-image {
+            width: 35px;
+            height: 35px;
+        }
+
+        .brand-text h2 {
+            font-size: 11px;
+        }
+
+        .brand-text small {
+            font-size: 8px;
+        }
+
+        .system-status {
+            display: none;
+        }
+
+        .page-layout {
+            display: block;
+        }
+
+        .sidebar {
+            width: 100%;
+            padding: 10px;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 4px;
+            border-right: 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .side-caption, .sidebar-note, .sidebar-footer {
+            display: none;
+        }
+
+        .nav-item {
+            width: auto;
+            padding: 9px 10px;
+        }
+
+        .main-content {
+            padding: 18px 13px;
+        }
+
+        .stats-grid, .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .full-field {
+            grid-column: auto;
+        }
+
+        .section-heading h1 {
+            font-size: 21px;
+        }
+
+        .page-footer {
+            flex-direction: column;
+        }
+    }
+
+    /* Dong bo mau sac voi trang Danh sach hoc vien */
+    .criteria-page {
+        background: #f1f7f4;
+        color: #123f32;
+    }
+
+        .criteria-page .topbar {
+            min-height: 100px;
+            padding: 0 30px;
+            background: linear-gradient(105deg, #064b35, #087447);
+            border-bottom: 2px solid #d6b84a;
+            color: #fff;
+        }
+
+        .criteria-page .brand {
+            gap: 18px;
+        }
+
+        .criteria-page .brand-logo-image,
+        .criteria-page .academy-logo {
+            width: 86px;
+            height: 86px;
+            object-fit: contain;
+            background: transparent;
+            border: 0;
+            border-radius: 0;
+            padding: 0;
+        }
+
+        .criteria-page .brand-divider {
+            width: 1px;
+            height: 62px;
+            background: #ffffff65;
+        }
+
+        .criteria-page .brand-text {
+            margin-left: 4px;
+        }
+
+            .criteria-page .brand-text h2 {
+                color: #fff;
+                font-size: 21px;
+                font-weight: 800;
+                letter-spacing: .2px;
+                margin: 0 0 7px;
+            }
+
+            .criteria-page .brand-text small {
+                display: block;
+                color: #f4d977;
+                font-size: 10px;
+                margin-top: 6px;
+                letter-spacing: .8px;
+            }
+
+        .criteria-page .system-status {
+            color: #e6f4eb;
+        }
+
+        .criteria-page .user-avatar {
+            border-radius: 50%;
+            background: #f5dc79;
+            color: #12553a;
+        }
+
+        .criteria-page .page-layout {
+            min-height: calc(100vh - 100px);
+        }
+
+        .criteria-page .sidebar {
+            width: 272px;
+            background: linear-gradient(180deg, #064333, #07392e);
+            border-right: 0;
+            color: white;
+            padding: 25px 16px 18px;
+        }
+
+        .criteria-page .side-caption {
+            color: #a7c9b6;
+        }
+
+        .criteria-page .nav-item {
+            color: #f0f7f2;
+            border-radius: 9px;
+            padding: 14px 13px;
+            font-size: 14px;
+        }
+
+            .criteria-page .nav-item:hover {
+                background: #175b43;
+                color: #ffe58b;
+            }
+
+            .criteria-page .nav-item.active {
+                background: #d9eee3;
+                color: #08613d;
+                border-left: 4px solid #e5c54e;
+            }
+
+        .criteria-page .sidebar-note {
+            background: #064b39;
+            border: 1px solid #39735c;
+            color: #ffe27a;
+            border-radius: 14px;
+        }
+
+            .criteria-page .sidebar-note p {
+                color: #e0eee5;
+            }
+
+        .criteria-page .sidebar-footer {
+            color: #9dbca9;
+        }
+
+        .criteria-page .main-content {
+            padding: 22px 24px 28px;
+        }
+
+        .criteria-page .breadcrumb {
+            color: #507567;
+            margin-bottom: 18px;
+        }
+
+        .criteria-page .section-heading h1 {
+            color: #123f32;
+        }
+
+        .criteria-page .eyebrow {
+            color: #16834b;
+            letter-spacing: .5px;
+        }
+
+        .criteria-page .stats-grid {
+            gap: 16px;
+        }
+
+        .criteria-page .stat-card,
+        .criteria-page .panel {
+            border-radius: 12px;
+            border-color: #e0ebe4;
+            box-shadow: 0 3px 12px rgba(13, 65, 42, .06);
+        }
+
+        .criteria-page .panel-heading h2 {
+            color: #123f32;
+        }
+
+        .criteria-page .btn-primary {
+            background: #08764a;
+            border-color: #08764a;
+            border-radius: 8px;
+        }
+
+            .criteria-page .btn-primary:hover {
+                background: #055c3a;
+            }
+
+        .criteria-page .live-tag {
+            color: #087447;
+            background: #e2f1e8;
+        }
+
+        .criteria-page .form-control-custom:focus {
+            border-color: #55a979;
+            box-shadow: 0 0 0 3px #16834b12;
+        }
+
+        .criteria-page thead {
+            background: #edf5f0;
+        }
+
+        .criteria-page th {
+            color: #507567;
+        }
+
+        .criteria-page tbody tr:hover {
+            background: #f4faf6;
+        }
+
+        .criteria-page .page-footer {
+            color: #789487;
+        }
+
+    @@media (max-width: 900px) {
+        .criteria-page .topbar {
+            padding: 12px 16px;
+            flex-wrap: wrap;
+        }
+
+        .criteria-page .brand-logo-image,
+        .criteria-page .academy-logo {
+            width: 58px;
+            height: 58px;
+        }
+
+        .criteria-page .brand-text h2 {
+            font-size: 15px;
+        }
+
+        .criteria-page .sidebar {
+            width: 210px;
+        }
+    }
+
+    @@media (max-width: 700px) {
+        .criteria-page .page-layout {
+            display: block;
+        }
+
+        .criteria-page .sidebar {
+            width: auto;
+            padding: 10px;
+            flex-direction: row;
+            align-items: center;
+            gap: 6px;
+            overflow-x: auto;
+            border-bottom: 1px solid #285a40;
+        }
+
+        .criteria-page .side-caption,
+        .criteria-page .sidebar-note,
+        .criteria-page .sidebar-footer {
+            display: none;
+        }
+
+        .criteria-page .nav-item {
+            width: auto;
+            white-space: nowrap;
+            padding: 10px;
+        }
+
+        .criteria-page .main-content {
+            padding: 18px 12px;
+        }
+
+        .criteria-page .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .criteria-page .full-field {
+            grid-column: auto;
+        }
+    }
+</style>
+
+@code {
+    private List<KyDanhGia> cacKyDanhGia = new();
+
+    private KyDanhGia model = TaoModelMoi();
+
+    private bool dangSua = false;
+    private int idDangSua = 0;
+
+    private string thongBao = "";
+    private string loaiThongBao = "alert-info";
+
+    private static KyDanhGia TaoModelMoi()
+    {
+        return new KyDanhGia
+        {
+            NgayBatDau = DateTime.Today,
+            NgayKetThuc = DateTime.Today
+        };
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await TaiDanhSach();
+    }
+
+    private async Task TaiDanhSach()
+    {
+        cacKyDanhGia = await DbContext.KyDanhGias
+            .AsNoTracking()
+            .OrderByDescending(x => x.Id)
+            .ToListAsync();
+    }
+
+    private async Task LuuKyDanhGia()
+    {
+        if (string.IsNullOrWhiteSpace(model.TenKy))
+        {
+            HienThongBao("Vui lòng nhập tên kỳ đánh giá.", "alert-danger");
+            return;
+        }
+
+        if (model.NgayKetThuc.Date < model.NgayBatDau.Date)
+        {
+            HienThongBao(
+                "Ngày kết thúc không được trước ngày bắt đầu.",
+                "alert-danger");
+            return;
+        }
+
+        if (!dangSua)
+        {
+            var kyMoi = new KyDanhGia
+            {
+                TenKy = model.TenKy.Trim(),
+                NgayBatDau = model.NgayBatDau,
+                NgayKetThuc = model.NgayKetThuc,
+                DaKhoa = false
+            };
+
+            DbContext.KyDanhGias.Add(kyMoi);
+        }
+        else
+        {
+            var kyCanSua = await DbContext.KyDanhGias
+                .FirstOrDefaultAsync(x => x.Id == idDangSua);
+
+            if (kyCanSua == null)
+            {
+                HienThongBao("Không tìm thấy kỳ đánh giá cần sửa.", "alert-danger");
+                return;
+            }
+
+            if (kyCanSua.DaKhoa)
+            {
+                HienThongBao("Kỳ đánh giá đã khóa nên không thể sửa.", "alert-danger");
+                return;
+            }
+
+            kyCanSua.TenKy = model.TenKy.Trim();
+            kyCanSua.NgayBatDau = model.NgayBatDau;
+            kyCanSua.NgayKetThuc = model.NgayKetThuc;
+        }
+
+        await DbContext.SaveChangesAsync();
+        await TaiDanhSach();
+
+        model = TaoModelMoi();
+        dangSua = false;
+        idDangSua = 0;
+
+        HienThongBao("Lưu kỳ đánh giá thành công!", "alert-success");
+    }
+
+    private void SuaKyDanhGia(KyDanhGia ky)
+    {
+        if (ky.DaKhoa)
+        {
+            HienThongBao("Kỳ đã khóa, hãy mở lại trước khi sửa.", "alert-warning");
+            return;
+        }
+
+        model = new KyDanhGia
+        {
+            TenKy = ky.TenKy,
+            NgayBatDau = ky.NgayBatDau,
+            NgayKetThuc = ky.NgayKetThuc
+        };
+
+        idDangSua = ky.Id;
+        dangSua = true;
+        thongBao = "";
+    }
+
+    private async Task DoiTrangThai(KyDanhGia ky)
+    {
+        var kyTrongDb = await DbContext.KyDanhGias
+            .FirstOrDefaultAsync(x => x.Id == ky.Id);
+
+        if (kyTrongDb == null)
+            return;
+
+        kyTrongDb.DaKhoa = !kyTrongDb.DaKhoa;
+
+        await DbContext.SaveChangesAsync();
+        await TaiDanhSach();
+
+        if (dangSua && idDangSua == ky.Id)
+        {
+            model = TaoModelMoi();
+            dangSua = false;
+            idDangSua = 0;
+        }
+
+        HienThongBao(
+            kyTrongDb.DaKhoa
+                ? "Đã khóa kỳ đánh giá."
+                : "Đã mở lại kỳ đánh giá.",
+            "alert-success");
+    }
+
+    private void HuySua()
+    {
+        model = TaoModelMoi();
+        dangSua = false;
+        idDangSua = 0;
+        thongBao = "";
+    }
+
+    private void HienThongBao(string noiDung, string loai)
+    {
+        thongBao = noiDung;
+        loaiThongBao = loai;
+    }
+}

@@ -1,0 +1,702 @@
+﻿@page "/nhap-ket-qua"
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using MyWebApp.Models
+@inject MyWebApp.Data.AppDbContext DbContext
+
+<PageTitle>Nhập kết quả rèn luyện</PageTitle>
+
+<div class="app-page">
+    <header class="topbar">
+        <div class="brand">
+            <img class="brand-logo-image" src="images/Logo_Bộ_Công_an_VN.png" alt="Biểu trưng Công an nhân dân" />
+            <div class="brand-divider"></div>
+            <img class="brand-logo-image academy-logo" src="images/Logo_hoc_vien_ANND.png" alt="Logo Học viện An ninh nhân dân" />
+            <div class="brand-text"><h2>HỌC VIỆN AN NINH NHÂN DÂN</h2><small>HỆ THỐNG QUẢN LÝ RÈN LUYỆN HỌC VIÊN</small></div>
+        </div>
+        <div class="topbar-right"><span class="system-status"><span></span> HỆ THỐNG QUẢN LÝ</span><div class="user-avatar">HV</div></div>
+    </header>
+
+    <div class="page-layout">
+        <aside class="sidebar">
+            <div class="side-caption">MENU CHÍNH</div>
+            <a class="nav-item" href="/dshocvien"><span>⌂</span> Trang chủ / Học viên</a>
+            <div class="side-caption side-caption-second">QUẢN LÝ RÈN LUYỆN</div>
+            <a class="nav-item" href="/ky-danh-gia"><span>▣</span> Kỳ đánh giá</a>
+            <a class="nav-item" href="/quan-ly-tieu-chi"><span>✓</span> Tiêu chí đánh giá</a>
+            <a class="nav-item active" href="/nhap-ket-qua"><span>✎</span> Nhập kết quả</a>
+            <a class="nav-item" href="/bao-cao-ket-qua"><span>▤</span> Báo cáo kết quả</a>
+            <div class="sidebar-note"><div class="note-icon">✦</div><b>Nhập kết quả rèn luyện</b><p>Chấm điểm từng tiêu chí cho học viên theo kỳ đánh giá.</p></div>
+            <div class="sidebar-footer">HỌC VIỆN AN NINH NHÂN DÂN</div>
+        </aside>
+
+        <main class="main-content">
+            <div class="breadcrumb">Trang chủ <span>/</span> Quản lý rèn luyện <span>/</span> Nhập kết quả</div>
+            <div class="section-heading page-title-row">
+                <div><span class="eyebrow green-text">QUẢN LÝ RÈN LUYỆN</span><h1>Nhập kết quả rèn luyện</h1><p>Chọn kỳ đánh giá, lớp và học viên để nhập điểm theo từng tiêu chí.</p></div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(thongBao))
+            {
+                <div class="notice-box @loaiThongBao"><span>@thongBao</span><button type="button" class="notice-close" @onclick="() => thongBao = string.Empty">×</button></div>
+            }
+
+            <section class="panel">
+                <div class="panel-heading"><div><h2>Thông tin đánh giá</h2><p>Chỉ các kỳ đang mở và tiêu chí đang sử dụng được dùng để nhập điểm.</p></div></div>
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label>Kỳ đánh giá</label>
+                        <select class="form-control-custom" @bind="kyId" @bind:after="TaiDuLieuNhap">
+                            <option value="0">-- Chọn kỳ đánh giá --</option>
+                            @foreach (var ky in cacKy.Where(x => !x.DaKhoa))
+                            {
+                                <option value="@ky.Id">@ky.TenKy</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Lớp học viên</label>
+                        <select class="form-control-custom" @bind="lopChon" @bind:after="TaiDanhSachHocVien">
+                            <option value="">-- Chọn lớp --</option>
+                            @foreach (var lop in cacLop)
+                            {
+                                <option value="@lop">@lop</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="form-field">
+                        <label>Học viên</label>
+                        <select class="form-control-custom" @bind="hocVienId" @bind:after="TaiDuLieuNhap">
+                            <option value="0">-- Chọn học viên --</option>
+                            @foreach (var hv in hocViens)
+                            {
+                                <option value="@hv.Id">@hv.HoTen</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            @if (kyId > 0 && hocVienId > 0)
+            {
+                <section class="panel">
+                    <div class="panel-heading"><div><h2>Bảng chấm điểm tiêu chí</h2><p>Nhập điểm đạt, không vượt quá điểm tối đa của từng tiêu chí.</p></div><span class="live-tag">THANG ĐIỂM TIÊU CHÍ</span></div>
+                    @if (tieuChis.Count == 0)
+                    {
+                        <div class="empty-state"><b>Chưa có tiêu chí đang sử dụng</b><p>Hãy kiểm tra trang Quản lý tiêu chí đánh giá.</p></div>
+                    }
+                    else
+                    {
+                        <div class="table-wrap">
+                            <table>
+                                <thead><tr><th>STT</th><th>TÊN TIÊU CHÍ</th><th>ĐIỂM TỐI ĐA</th><th>ĐIỂM ĐẠT</th></tr></thead>
+                                <tbody>
+                                    @foreach (var tc in tieuChis)
+                                    {
+                                        <tr><td>@tc.ThuTu</td><td><b>@tc.TenTieuChi</b><div class="muted-cell">@tc.MoTa</div></td><td><b>@tc.DiemToiDa</b></td><td><input class="score-input" type="number" min="0" max="@tc.DiemToiDa" step="0.5" @bind="diemNhap[tc.Id]" /></td></tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="score-summary"><span>Tổng điểm đạt</span><strong>@TongDiem.ToString("0.##") / @TongDiemToiDa.ToString("0.##")</strong><span>Điểm quy đổi: <b>@DiemQuyDoi.ToString("0.0") / 10</b></span><span>Xếp loại: <b>@XepLoai(DiemQuyDoi)</b></span></div>
+                        <div class="form-actions"><button type="button" class="btn-primary" @onclick="LuuKetQua">✓ Lưu kết quả</button></div>
+                    }
+                </section>
+            }
+            else
+            {
+                <section class="panel empty-state"><div>▤</div><b>Chưa chọn đủ thông tin</b><p>Hãy chọn kỳ đánh giá, lớp và học viên để bắt đầu nhập điểm.</p></section>
+            }
+            <footer class="page-footer"><span>QUẢN LÝ RÈN LUYỆN HỌC VIÊN</span><span>Hệ thống quản lý nội bộ · Phiên bản 1.0</span></footer>
+        </main>
+    </div>
+</div>
+
+<style>
+    :root {
+        --green: #16834b;
+        --green-dark: #10673b;
+        --green-light: #e9f6ee;
+        --text: #1e3027;
+        --muted: #7d8b83;
+        --border: #e7ede8;
+        --background: #f1f7f4
+    }
+
+    .app-page {
+        min-height: 100vh;
+        background: var(--background);
+        color: var(--text);
+        font: 14px "Segoe UI",Arial,sans-serif
+    }
+
+        .app-page * {
+            box-sizing: border-box
+        }
+
+    .topbar {
+        min-height: 100px;
+        padding: 0 30px;
+        background: linear-gradient(105deg,#064b35,#087447);
+        border-bottom: 2px solid #d6b84a;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        color: white
+    }
+
+    .brand, .topbar-right {
+        display: flex;
+        align-items: center
+    }
+
+    .brand {
+        gap: 18px
+    }
+
+    .brand-logo-image, .academy-logo {
+        width: 72px;
+        height: 72px;
+        object-fit: contain
+    }
+
+    .brand-divider {
+        height: 58px;
+        width: 1px;
+        background: #ffffff65
+    }
+
+    .brand-text h2 {
+        font-size: 19px;
+        margin: 0 0 7px
+    }
+
+    .brand-text small {
+        color: #f4d977;
+        font-size: 10px;
+        letter-spacing: .8px
+    }
+
+    .topbar-right {
+        gap: 22px
+    }
+
+    .system-status {
+        color: #e6f4eb;
+        font-size: 12px
+    }
+
+        .system-status span {
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            background: #21a564;
+            border-radius: 50%;
+            margin-right: 5px
+        }
+
+    .user-avatar {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: #f5dc79;
+        color: #12553a;
+        font-weight: 700
+    }
+
+    .page-layout {
+        display: flex;
+        min-height: calc(100vh - 100px)
+    }
+
+    .sidebar {
+        width: 255px;
+        flex-shrink: 0;
+        background: linear-gradient(180deg,#064333,#07392e);
+        padding: 25px 16px 18px;
+        display: flex;
+        flex-direction: column
+    }
+
+    .side-caption {
+        color: #a7c9b6;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.1px;
+        padding: 0 12px;
+        margin-bottom: 12px
+    }
+
+    .side-caption-second {
+        margin-top: 28px
+    }
+
+    .nav-item {
+        text-decoration: none;
+        border-radius: 9px;
+        padding: 13px;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #f0f7f2;
+        margin: 3px 0;
+        font-size: 13px
+    }
+
+        .nav-item span {
+            width: 18px;
+            text-align: center;
+            font-size: 17px
+        }
+
+        .nav-item:hover {
+            background: #175b43;
+            color: #ffe58b
+        }
+
+        .nav-item.active {
+            background: #d9eee3;
+            color: #08613d;
+            font-weight: 700;
+            border-left: 4px solid #e5c54e
+        }
+
+    .sidebar-note {
+        margin-top: auto;
+        background: #064b39;
+        border: 1px solid #39735c;
+        border-radius: 14px;
+        padding: 16px;
+        color: #ffe27a;
+        line-height: 1.6
+    }
+
+    .note-icon {
+        font-size: 22px;
+        margin-bottom: 9px
+    }
+
+    .sidebar-note p {
+        font-size: 11px;
+        color: #e0eee5;
+        margin: 7px 0 0
+    }
+
+    .sidebar-footer {
+        color: #9dbca9;
+        font-size: 10px;
+        letter-spacing: 1px;
+        padding: 23px 10px 0
+    }
+
+    .main-content {
+        min-width: 0;
+        flex: 1;
+        padding: 22px 25px 28px
+    }
+
+    .breadcrumb {
+        font-size: 12px;
+        color: #507567;
+        margin-bottom: 18px
+    }
+
+        .breadcrumb span {
+            padding: 0 9px;
+            color: #bdc8c0
+        }
+
+    .section-heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        margin: 3px 0 20px
+    }
+
+        .section-heading h1 {
+            font-size: 25px;
+            margin: 7px 0;
+            color: #123f32
+        }
+
+        .section-heading p, .panel-heading p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.6
+        }
+
+    .eyebrow {
+        font-size: 10px;
+        letter-spacing: 1px;
+        font-weight: 700
+    }
+
+    .green-text {
+        color: var(--green)
+    }
+
+    .panel {
+        margin-top: 22px;
+        background: white;
+        border: 1px solid #e0ebe4;
+        border-radius: 13px;
+        box-shadow: 0 3px 12px #0d412a0f;
+        overflow: hidden
+    }
+
+    .panel-heading {
+        padding: 21px 23px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px
+    }
+
+        .panel-heading h2 {
+            font-size: 15px;
+            margin: 0 0 7px;
+            color: #123f32
+        }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(3,minmax(0,1fr));
+        gap: 18px;
+        padding: 0 23px 23px
+    }
+
+    .form-field {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0
+    }
+
+        .form-field label {
+            font-size: 12px;
+            font-weight: 650;
+            color: #425449
+        }
+
+    .form-control-custom {
+        width: 100%;
+        background: white;
+        border: 1px solid #dfe7e0;
+        border-radius: 9px;
+        padding: 11px 12px;
+        color: #33483a;
+        font: 12px "Segoe UI",sans-serif
+    }
+
+    .table-wrap {
+        width: 100%;
+        overflow-x: auto
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 650px;
+        text-align: left
+    }
+
+    thead {
+        background: #edf5f0
+    }
+
+    th {
+        padding: 14px 16px;
+        color: #507567;
+        font-size: 9px;
+        letter-spacing: .55px
+    }
+
+    td {
+        padding: 14px 16px;
+        border-top: 1px solid #edf1ed;
+        font-size: 12px;
+        color: #536258
+    }
+
+        td b {
+            color: #2b3d31
+        }
+
+    .muted-cell {
+        color: #91a097;
+        font-size: 11px;
+        margin-top: 4px
+    }
+
+    .score-input {
+        width: 105px;
+        padding: 9px;
+        border: 1px solid #dfe7e0;
+        border-radius: 8px;
+        font: inherit
+    }
+
+    .score-summary {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        flex-wrap: wrap;
+        padding: 18px 23px;
+        background: #f5faf6;
+        color: #536258;
+        font-size: 12px
+    }
+
+        .score-summary strong {
+            font-size: 20px;
+            color: #087447
+        }
+
+        .score-summary b {
+            color: #087447
+        }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        padding: 18px 23px
+    }
+
+    .btn-primary {
+        padding: 11px 17px;
+        border: 1px solid #08764a;
+        border-radius: 8px;
+        background: #08764a;
+        color: white;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer
+    }
+
+        .btn-primary:hover {
+            background: #055c3a
+        }
+
+    .live-tag {
+        background: #e2f1e8;
+        color: #087447;
+        padding: 8px 10px;
+        border-radius: 7px;
+        font-size: 10px
+    }
+
+    .notice-box {
+        padding: 12px 15px;
+        margin-bottom: 18px;
+        border-radius: 9px;
+        font-size: 12px;
+        display: flex;
+        justify-content: space-between
+    }
+
+    .alert-success {
+        background: #e9f6ee;
+        color: #176b3e
+    }
+
+    .alert-danger {
+        background: #fff0ef;
+        color: #a83e37
+    }
+
+    .notice-close {
+        border: 0;
+        background: transparent;
+        font-size: 20px;
+        color: inherit
+    }
+
+    .empty-state {
+        padding: 42px 20px;
+        text-align: center;
+        color: #718078
+    }
+
+        .empty-state > div {
+            font-size: 32px;
+            color: #a5cbb0;
+            margin-bottom: 12px
+        }
+
+        .empty-state b {
+            color: #33483a;
+            font-size: 13px
+        }
+
+        .empty-state p {
+            font-size: 12px
+        }
+
+    .page-footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+        color: #789487;
+        font-size: 10px;
+        padding: 25px 2px 5px
+    }
+
+    @@media(max-width:900px) {
+        .topbar {
+            padding: 12px 16px;
+            flex-wrap: wrap
+        }
+
+        .brand-logo-image, .academy-logo {
+            width: 55px;
+            height: 55px
+        }
+
+        .brand-text h2 {
+            font-size: 14px
+        }
+
+        .sidebar {
+            width: 215px
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr 1fr
+        }
+    }
+
+    @@media(max-width:700px) {
+        .page-layout {
+            display: block
+        }
+
+        .sidebar {
+            width: 100%;
+            padding: 10px;
+            flex-direction: row;
+            flex-wrap: wrap
+        }
+
+        .side-caption, .sidebar-note, .sidebar-footer {
+            display: none
+        }
+
+        .nav-item {
+            width: auto;
+            padding: 9px
+        }
+
+        .main-content {
+            padding: 18px 12px
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr
+        }
+
+        .page-footer {
+            flex-direction: column
+        }
+    }
+</style>
+
+@code {
+    private List<KyDanhGia> cacKy = new();
+    private List<string> cacLop = new();
+    private List<HocVien> hocViens = new();
+    private List<TieuChiDanhGia> tieuChis = new();
+    private Dictionary<int, double> diemNhap = new();
+    private int kyId;
+    private int hocVienId;
+    private string lopChon = "";
+    private string thongBao = "";
+    private string loaiThongBao = "alert-success";
+    private double TongDiem => diemNhap.Values.Sum();
+    private double TongDiemToiDa => tieuChis.Sum(x => x.DiemToiDa);
+    private double DiemQuyDoi => TongDiemToiDa <= 0 ? 0 : TongDiem / TongDiemToiDa * 10.0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            cacKy = await DbContext.KyDanhGias.AsNoTracking().OrderByDescending(x => x.Id).ToListAsync();
+            cacLop = await DbContext.HocViens.AsNoTracking()
+                .Where(x => x.Lop != null).Select(x => x.Lop).Distinct().OrderBy(x => x).ToListAsync();
+            tieuChis = await DbContext.TieuChiDanhGias.AsNoTracking()
+                .Where(x => x.DangSuDung).OrderBy(x => x.ThuTu).ToListAsync();
+            diemNhap = tieuChis.ToDictionary(x => x.Id, x => 0.0);
+        }
+        catch (Exception ex)
+        {
+            ThongBao("Lỗi tải dữ liệu: " + ex.GetBaseException().Message, "alert-danger");
+        }
+    }
+
+    private async Task TaiDanhSachHocVien()
+    {
+        try
+        {
+            hocVienId = 0;
+            hocViens = string.IsNullOrWhiteSpace(lopChon)
+                ? new()
+                : await DbContext.HocViens.AsNoTracking().Where(x => x.Lop == lopChon).OrderBy(x => x.HoTen).ToListAsync();
+            diemNhap = tieuChis.ToDictionary(x => x.Id, x => 0.0);
+        }
+        catch (Exception ex)
+        {
+            ThongBao("Lỗi tải danh sách học viên: " + ex.GetBaseException().Message, "alert-danger");
+        }
+    }
+
+    private async Task TaiDuLieuNhap()
+    {
+        diemNhap = tieuChis.ToDictionary(x => x.Id, x => 0.0);
+        if (kyId <= 0 || hocVienId <= 0) return;
+        try
+        {
+            var daLuu = await DbContext.Set<KetQuaTieuChi>().AsNoTracking()
+                .Where(x => x.KyDanhGiaId == kyId && x.HocVienId == hocVienId).ToListAsync();
+            foreach (var item in daLuu)
+                if (diemNhap.ContainsKey(item.TieuChiDanhGiaId)) diemNhap[item.TieuChiDanhGiaId] = item.DiemDat;
+        }
+        catch (Exception ex)
+        {
+            ThongBao("Lỗi tải điểm đã lưu: " + ex.GetBaseException().Message, "alert-danger");
+        }
+    }
+
+    private async Task LuuKetQua()
+    {
+        try
+        {
+            if (kyId <= 0 || hocVienId <= 0) { ThongBao("Hãy chọn kỳ đánh giá và học viên.", "alert-danger"); return; }
+            var ky = await DbContext.KyDanhGias.FirstOrDefaultAsync(x => x.Id == kyId);
+            if (ky == null || ky.DaKhoa) { ThongBao("Kỳ đánh giá không tồn tại hoặc đã khóa.", "alert-danger"); return; }
+            if (tieuChis.Count == 0) { ThongBao("Chưa có tiêu chí đang sử dụng.", "alert-danger"); return; }
+            foreach (var tc in tieuChis)
+            {
+                var diem = diemNhap.GetValueOrDefault(tc.Id);
+                if (diem < 0 || diem > tc.DiemToiDa) { ThongBao($"Điểm tiêu chí '{tc.TenTieuChi}' phải từ 0 đến {tc.DiemToiDa}.", "alert-danger"); return; }
+            }
+            var daCo = await DbContext.Set<KetQuaTieuChi>().Where(x => x.KyDanhGiaId == kyId && x.HocVienId == hocVienId).ToListAsync();
+            DbContext.Set<KetQuaTieuChi>().RemoveRange(daCo);
+            foreach (var tc in tieuChis)
+                DbContext.Set<KetQuaTieuChi>().Add(new KetQuaTieuChi { HocVienId = hocVienId, KyDanhGiaId = kyId, TieuChiDanhGiaId = tc.Id, DiemDat = diemNhap.GetValueOrDefault(tc.Id), DiemToiDa = tc.DiemToiDa });
+            await DbContext.SaveChangesAsync();
+            ThongBao($"Đã lưu kết quả. Tổng {TongDiem:0.##}/{TongDiemToiDa:0.##}, quy đổi {DiemQuyDoi:0.0}/10 – {XepLoai(DiemQuyDoi)}.", "alert-success");
+        }
+        catch (Exception ex)
+        {
+            DbContext.ChangeTracker.Clear();
+            ThongBao("Lỗi khi lưu: " + ex.GetBaseException().Message, "alert-danger");
+        }
+    }
+
+    private static string XepLoai(double diem) => diem switch { >= 9 => "Xuất sắc", >= 8 => "Giỏi", >= 7 => "Khá", >= 5 => "Trung bình", _ => "Không xếp loại" };
+    private void ThongBao(string noiDung, string loai) { thongBao = noiDung; loaiThongBao = loai; }
+}
