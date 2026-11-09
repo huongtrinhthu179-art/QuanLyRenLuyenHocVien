@@ -53,3 +53,26 @@ html, body { margin:0; min-height:100%; font-family:"Segoe UI",Arial,sans-serif;
 .app-shell .main-content { min-width:0!important; padding:22px 30px 36px!important; }
 @media(max-width:900px) { .app-shell .topbar { padding:12px 18px!important; }.app-shell .brand {gap:12px!important}.app-shell .brand-logo-image{width:62px!important;height:62px!important}.app-shell .page-layout{grid-template-columns:220px minmax(0,1fr)!important}.app-shell .main-content{padding:20px!important} }
 @media(max-width:640px) { .app-shell > .topbar{align-items:flex-start!important;flex-direction:column!important;gap:10px!important}.app-shell .brand{gap:9px!important}.app-shell .brand-logo-image{width:44px!important;height:48px!important}.app-shell .brand-divider{height:42px!important}.app-shell .brand-text strong{font-size:14px!important}.app-shell .brand-text small{font-size:8px!important}.app-shell .topbar-right{align-self:flex-end!important;gap:12px!important;font-size:12px}.app-shell .page-layout{display:block!important}.app-shell .sidebar{display:grid!important;grid-template-columns:1fr 1fr!important;gap:6px!important;padding:12px!important}.app-shell .side-caption{grid-column:1/-1!important;margin:8px 6px 4px!important}.app-shell .nav-item{min-height:46px!important;padding:8px!important;font-size:12px!important}.app-shell .sidebar-footer{display:none!important}.app-shell .main-content{padding:14px!important} }
+
+/* Profile dropdown and sign-out action */
+.profile-menu { position:relative;display:flex;align-items:center; }
+.user-avatar.rz-button { width:54px;min-width:54px;height:54px;padding:0;border:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#f5dc79;color:#12553a;font-size:19px;font-weight:800;box-shadow:none; }
+.user-avatar.rz-button:hover,.user-avatar.rz-button:focus { background:#ffe58b;color:#064b35; }
+.profile-menu-panel { position:absolute;right:0;top:calc(100% + 10px);z-index:1200;width:220px;padding:12px;border:1px solid #e1e9e4;border-radius:12px;background:#fff;color:#173d32;box-shadow:0 12px 30px rgba(0,0,0,.18); }
+.profile-menu-heading { padding:8px 10px 12px;border-bottom:1px solid #e8eee9;color:#5f766b;font-size:12px;font-weight:700; }
+.profile-menu-panel form { margin:8px 0 0; }
+.profile-logout.rz-button { width:100%;justify-content:flex-start;border:0;border-radius:8px;background:transparent;color:#254a3d;font-weight:600; }
+.profile-logout.rz-button:hover { background:#edf5f0;color:#07563d; }
+
+.profile-menu-panel {
+    width:290px; 
+    display:none;
+}
+.profile-menu-panel.open{
+    display:block;
+}
+.profile-info-list { display:flex;flex-direction:column;gap:10px;padding:12px 8px 8px; }
+.profile-info-row { display:flex;flex-direction:column;gap:3px;min-width:0; }
+.profile-info-row > span { color:#829087;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase; }
+.profile-info-row > strong { color:#173d32;font-size:13px;font-weight:600;overflow-wrap:anywhere; }
+.profile-role-row { flex-direction:row;align-items:center;justify-content:space-between;margin-top:2px; }

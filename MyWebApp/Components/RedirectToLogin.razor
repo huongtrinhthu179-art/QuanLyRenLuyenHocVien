@@ -1,0 +1,31 @@
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager Navigation
+
+@if (isAuthenticated)
+{
+    <RadzenAlert Severity="AlertSeverity.Warning">
+        Tài khoản của bạn không có quyền truy cập trang này.
+    </RadzenAlert>
+}
+else
+{
+    <p>Đang chuyển đến trang đăng nhập...</p>
+}
+
+@code {
+    private bool isAuthenticated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        isAuthenticated = state.User.Identity?.IsAuthenticated == true;
+
+        if (!isAuthenticated)
+        {
+            var returnUrl = new Uri(Navigation.Uri).PathAndQuery;
+            Navigation.NavigateTo(
+                $"/login?returnUrl={Uri.EscapeDataString(returnUrl)}",
+                forceLoad: true);
+        }
+    }
+}

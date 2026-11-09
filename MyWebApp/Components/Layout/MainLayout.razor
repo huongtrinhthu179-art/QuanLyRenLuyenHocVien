@@ -1,4 +1,9 @@
 @inherits LayoutComponentBase
+@using Microsoft.EntityFrameworkCore
+@using MyWebApp.Data
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<IdentityUser> UserManager
+@inject IDbContextFactory<AppDbContext> DbFactory
 @inject NavigationManager Navigation
 
 <div class="app-shell">
@@ -9,7 +14,32 @@
             <img class="brand-logo-image academy-logo" src="images/Logo_hoc_vien_ANND.png" alt="Logo Học viện An ninh nhân dân" />
             <span class="brand-text"><strong>HỌC VIỆN AN NINH NHÂN DÂN</strong><small>HỆ THỐNG QUẢN LÝ RÈN LUYỆN HỌC VIÊN</small></span>
         </a>
-        <div class="topbar-right"><span class="system-status"><i></i> HỆ THỐNG QUẢN LÝ</span><span class="user-avatar">HV</span></div>
+        <div class="topbar-right">
+            <span class="system-status"><i></i> HỆ THỐNG QUẢN LÝ</span>
+            <div class="profile-menu">
+                <RadzenButton class="user-avatar"
+                              Text="HV"
+                              Title="Tài khoản"
+                              Click="ToggleProfileMenu" />
+                <div class="profile-menu-panel @(showProfileMenu ? "open" : "")"
+                     aria-hidden="@(!showProfileMenu)">
+                        <div class="profile-menu-heading">Thông tin cá nhân</div>
+                        <div class="profile-info-list">
+                            <div class="profile-info-row"><span>Tên</span><strong>@profileName</strong></div>
+                            <div class="profile-info-row"><span>Ngày sinh</span><strong>@profileDateOfBirth</strong></div>
+                            <div class="profile-info-row"><span>Giới tính</span><strong>@profileGender</strong></div>
+                            <div class="profile-info-row profile-role-row"><span>Vai trò</span><RadzenBadge Text="@profileRole" BadgeStyle="BadgeStyle.Success" /></div>
+                        </div>
+                        <form method="post" action="/logout">
+                            <AntiforgeryToken />
+                            <RadzenButton class="profile-logout"
+                                          ButtonType="ButtonType.Submit"
+                                          Icon="logout"
+                                          Text="Đăng xuất" />
+                        </form>
+                    </div>
+            </div>
+        </div>
     </header>
     <div class="page-layout">
         <aside class="sidebar">
@@ -33,6 +63,52 @@
 <div id="blazor-error-ui">Đã xảy ra lỗi. <a href="" class="reload">Tải lại</a><a class="dismiss">×</a></div>
 
 @code {
+    private bool showProfileMenu;
+    private string profileName = "Đang tải...";
+    private string profileDateOfBirth = "Chưa cập nhật";
+    private string profileGender = "Chưa cập nhật";
+    private string profileRole = "Chưa gán vai trò";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authentication = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (authentication.User.Identity?.IsAuthenticated != true)
+            return;
+
+        var user = await UserManager.GetUserAsync(authentication.User);
+        if (user is null)
+            return;
+
+        profileName = user.UserName ?? "Chưa cập nhật";
+        var roles = await UserManager.GetRolesAsync(user);
+        profileRole = roles.Count == 0
+            ? "Chưa gán vai trò"
+            : string.Join(", ", roles.Select(TranslateRole));
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var profile = await db.UserProfiles.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.UserId == user.Id);
+        if (profile is null)
+            return;
+
+        if (!string.IsNullOrWhiteSpace(profile.FullName))
+            profileName = profile.FullName;
+        if (profile.DateOfBirth.HasValue)
+            profileDateOfBirth = profile.DateOfBirth.Value.ToString("dd/MM/yyyy");
+        if (!string.IsNullOrWhiteSpace(profile.Gender))
+            profileGender = profile.Gender;
+    }
+
+    private static string TranslateRole(string role) => role switch
+    {
+        "Admin" => "Quản trị viên",
+        "CanBo" => "Cán bộ",
+        "HocVien" => "Học viên",
+        _ => role
+    };
+
+    private void ToggleProfileMenu() => showProfileMenu = !showProfileMenu;
+
     private string SectionName => new Uri(Navigation.Uri).AbsolutePath.Trim('/') switch
     {
         "" => "Tổng quan",
