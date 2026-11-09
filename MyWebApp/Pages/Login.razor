@@ -1,0 +1,80 @@
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Forms
+@using Radzen
+@using Radzen.Blazor
+
+<div class="login-screen">
+    <section class="brand-panel">
+        <RadzenImage Path="/images/Logo_hoc_vien_ANND.png"
+                     AlternateText="Logo Học viện An ninh nhân dân"
+                     class="brand-logo" />
+        <h2 class="brand-title">HỌC VIỆN<br />AN NINH NHÂN DÂN</h2>
+        <p class="brand-subtitle">Quản lý rèn luyện học viên</p>
+    </section>
+
+    <section class="form-panel">
+        <RadzenCard class="login-card">
+            <h1>Đăng nhập</h1>
+
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
+                <RadzenAlert Severity="AlertSeverity.Error" Variant="Variant.Flat">
+                    @ErrorMessage
+                </RadzenAlert>
+            }
+
+            <RadzenTemplateForm TItem="LoginFormData"
+                                Data="@formData"
+                                Method="post"
+                                Action="/login">
+                <AntiforgeryToken />
+                <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
+
+                <div class="form-field">
+                    <label for="login-user">Email</label>
+                    <RadzenTextBox Name="Input.UserName"
+                                   @bind-Value="formData.UserName"
+                                   class="login-control"
+                                   Style="width: 100%;"
+                                   Placeholder="" />
+                </div>
+
+                <div class="form-field">
+                    <label for="login-password">Mật khẩu</label>
+                    <RadzenPassword Name="Input.Password"
+                                    @bind-Value="formData.Password"
+                                    class="login-control"
+                                    Style="width: 100%;"
+                                    Placeholder="" />
+                </div>
+
+                <div class="remember-row">
+                    <RadzenCheckBox TValue="bool"
+                                    Name="Input.RememberMe"
+                                    @bind-Value="formData.RememberMe" />
+                    <span>Ghi nhớ đăng nhập</span>
+                </div>
+
+                <RadzenButton ButtonType="ButtonType.Submit"
+                              Text="Đăng nhập"
+                              class="login-button"
+                              Style="width: 100%;" />
+            </RadzenTemplateForm>
+        </RadzenCard>
+    </section>
+</div>
+
+@code {
+    [Parameter] public string? ReturnUrl { get; set; }
+    [Parameter] public string? ErrorMessage { get; set; }
+
+    private LoginFormData formData = new();
+
+    private sealed class LoginFormData
+    {
+        public string UserName { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public bool RememberMe { get; set; }
+    }
+}
+

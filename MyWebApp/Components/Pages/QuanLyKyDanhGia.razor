@@ -1,4 +1,5 @@
-﻿@page "/ky-danh-gia"
+@page "/ky-danh-gia"
+@attribute [Authorize]
 @rendermode InteractiveServer
 
 @using Microsoft.EntityFrameworkCore
@@ -7,43 +8,8 @@
 
 <PageTitle>Quản lý kỳ đánh giá</PageTitle>
 
-<div class="app-page criteria-page">
-    <header class="topbar">
-        <div class="brand">
-            <img class="brand-logo-image" src="images/Logo_Bộ_Công_an_VN.png" alt="Biểu trưng Công an nhân dân" />
-            <div class="brand-divider"></div>
-            <img class="brand-logo-image academy-logo" src="images/Logo_hoc_vien_ANND.png" alt="Logo Học viện An ninh nhân dân" />
-            <div class="brand-text">
-                <h2>HỌC VIỆN AN NINH NHÂN DÂN</h2>
-                <small>HỆ THỐNG QUẢN LÝ RÈN LUYỆN HỌC VIÊN</small>
-            </div>
-        </div>
-        <div class="topbar-right">
-            <span class="system-status"><span></span> HỆ THỐNG QUẢN LÝ</span>
-            <div class="user-avatar">HV</div>
-        </div>
-    </header>
-
-    <div class="page-layout">
-        <aside class="sidebar">
-            <div class="side-caption">MENU CHÍNH</div>
-            <a class="nav-item" href="/dshocvien"><span>⌂</span> Trang chủ / Học viên</a>
-            <div class="side-caption side-caption-second">QUẢN LÝ RÈN LUYỆN</div>
-            <a class="nav-item active" href="/ky-danh-gia"><span>▣</span> Kỳ đánh giá</a>
-            <a class="nav-item" href="/quan-ly-tieu-chi"><span>✓</span> Tiêu chí đánh giá</a>
-            <a class="nav-item" href="/bao-cao-ket-qua"><span>▤</span> Báo cáo kết quả</a>
-            <div class="sidebar-note">
-                <div class="note-icon">✦</div>
-                <b>Quản lý kỳ đánh giá</b>
-                <p>Tạo lập, cập nhật và kiểm soát trạng thái các kỳ đánh giá rèn luyện học viên.</p>
-            </div>
-            <div class="sidebar-footer">HỌC VIỆN AN NINH NHÂN DÂN</div>
-        </aside>
-
-        <main class="main-content">
-            <div class="breadcrumb">Trang chủ <span>/</span> Quản lý rèn luyện <span>/</span> Kỳ đánh giá</div>
-
-            <div class="section-heading page-title-row">
+<div class="page-content">
+<div class="section-heading page-title-row">
                 <div>
                     <span class="eyebrow green-text">QUẢN LÝ RÈN LUYỆN</span>
                     <h1>Quản lý kỳ đánh giá</h1>
@@ -196,9 +162,7 @@
                 <span>QUẢN LÝ RÈN LUYỆN HỌC VIÊN</span>
                 <span>Hệ thống quản lý nội bộ · Phiên bản 1.0</span>
             </footer>
-        </main>
-    </div>
-</div>
+        </div>
 
 <style>
     :root {
