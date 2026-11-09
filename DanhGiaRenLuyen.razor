@@ -1,0 +1,426 @@
+@page "/renluyen"
+@rendermode InteractiveServer
+@using System.Linq
+
+<PageTitle>Đánh giá rèn luyện học viên</PageTitle>
+
+<div class="rl-page">
+
+    <div class="rl-heading">
+        <div>
+            <div class="rl-eyebrow">QUẢN LÝ RÈN LUYỆN</div>
+            <h2>Phiếu đánh giá rèn luyện</h2>
+            <p>Chấm điểm, xếp loại và quản lý kết quả học viên.</p>
+        </div>
+    </div>
+
+    <!-- CHỌN HỌC VIÊN -->
+    <div class="rl-card">
+        <h4>Thông tin học viên</h4>
+
+        <div class="rl-grid">
+            <div>
+                <label>Chọn học viên</label>
+                <select class="form-select"
+                        value="@hocVienId"
+                        @onchange="ChonHocVien">
+                    @foreach (var hv in danhSachHocVien)
+                    {
+                        <option value="@hv.Id">
+                            @hv.HoTen - @hv.Lop
+                        </option>
+                    }
+                </select>
+            </div>
+
+            <div>
+                <label>Họ và tên</label>
+                <input class="form-control"
+                       value="@HocVienHienTai.HoTen"
+                       readonly />
+            </div>
+
+            <div>
+                <label>Lớp</label>
+                <input class="form-control"
+                       value="@HocVienHienTai.Lop"
+                       readonly />
+            </div>
+
+            <div>
+                <label>Ngày đánh giá</label>
+                <input type="date"
+                       class="form-control"
+                       @bind="ngayDanhGia"
+                       @bind:format="yyyy-MM-dd" />
+            </div>
+        </div>
+    </div>
+
+    <!-- BẢNG TIÊU CHÍ -->
+    <div class="rl-card">
+        <h4>Bảng tiêu chí đánh giá</h4>
+        <p>Nhập điểm từng tiêu chí. Tổng tối đa 100 điểm.</p>
+
+        <div class="table-responsive">
+            <table class="rl-table">
+                <thead>
+                    <tr>
+                        <th>STT</th>
+                        <th>Tiêu chí đánh giá</th>
+                        <th>Điểm tối đa</th>
+                        <th>Điểm đạt được</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < tieuChi.Count; i++)
+                    {
+                        var index = i;
+                        var tc = tieuChi[index];
+
+                        <tr>
+                            <td>@(index + 1)</td>
+                            <td>@tc.Ten</td>
+                            <td>@tc.DiemToiDa</td>
+                            <td>
+                                <input type="number"
+                                       class="rl-score-input"
+                                       min="0"
+                                       max="@tc.DiemToiDa"
+                                       step="0.5"
+                                       value="@tc.Diem"
+                                       @onchange="e => CapNhatDiem(index, e.Value?.ToString())"
+                                       disabled="@DaDuyet" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- TỔNG ĐIỂM -->
+    <div class="rl-summary">
+        <div class="rl-stat">
+            <span>Tổng điểm</span>
+            <strong>@TongDiem.ToString("0.##") / 100</strong>
+        </div>
+
+        <div class="rl-stat">
+            <span>Điểm quy đổi thang 10</span>
+            <strong>@DiemThang10.ToString("0.##")</strong>
+        </div>
+
+        <div class="rl-stat">
+            <span>Xếp loại</span>
+            <strong>@XepLoai</strong>
+        </div>
+
+        <div class="rl-stat">
+            <span>Trạng thái</span>
+            <strong>@TrangThai</strong>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(thongBao))
+    {
+        <div class="rl-notice">@thongBao</div>
+    }
+
+    <div class="rl-actions">
+        <button class="rl-btn-draft"
+                @onclick="LuuNhap"
+                disabled="@DaDuyet">
+            Lưu nháp
+        </button>
+
+        <button class="rl-btn-approve"
+                @onclick="MoXacNhanDuyet"
+                disabled="@DaDuyet">
+            Duyệt phiếu
+        </button>
+
+        <button class="rl-btn-reset"
+                @onclick="LamMoi">
+            Làm mới
+        </button>
+    </div>
+
+    <!-- KẾT QUẢ CÁ NHÂN -->
+    <div class="rl-card">
+        <h4>Kết quả rèn luyện cá nhân</h4>
+
+        @if (ketQua.Count == 0)
+        {
+            <p>Chưa có kết quả được lưu trong phiên làm việc.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="rl-table">
+                    <thead>
+                        <tr>
+                            <th>Họ tên</th>
+                            <th>Lớp</th>
+                            <th>Ngày</th>
+                            <th>Điểm / 10</th>
+                            <th>Xếp loại</th>
+                            <th>Trạng thái</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var kq in KetQuaCaNhan)
+                        {
+                            <tr>
+                                <td>@kq.HoTen</td>
+                                <td>@kq.Lop</td>
+                                <td>@kq.Ngay.ToString("dd/MM/yyyy")</td>
+                                <td>@kq.Diem.ToString("0.##")</td>
+                                <td>@kq.XepLoai</td>
+                                <td>@kq.TrangThai</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <!-- XÁC NHẬN DUYỆT -->
+    @if (hienXacNhan)
+    {
+        <div class="rl-overlay">
+            <div class="rl-dialog">
+                <h3>Xác nhận duyệt phiếu</h3>
+                <p>
+                    Duyệt phiếu của
+                    <strong>@HocVienHienTai.HoTen</strong>
+                    với điểm @DiemThang10.ToString("0.##")?
+                </p>
+                <p>Sau khi duyệt sẽ khóa chỉnh sửa điểm.</p>
+
+                <div class="rl-actions">
+                    <button class="rl-btn-reset"
+                            @onclick="() => hienXacNhan = false">
+                        Hủy
+                    </button>
+                    <button class="rl-btn-approve"
+                            @onclick="XacNhanDuyet">
+                        Xác nhận duyệt
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    public class HocVien
+    {
+        public int Id { get; set; }
+        public string HoTen { get; set; } = "";
+        public string Lop { get; set; } = "";
+    }
+
+    public class TieuChi
+    {
+        public string Ten { get; set; } = "";
+        public decimal DiemToiDa { get; set; }
+        public decimal Diem { get; set; }
+    }
+
+    public class KetQua
+    {
+        public int HocVienId { get; set; }
+        public string HoTen { get; set; } = "";
+        public string Lop { get; set; } = "";
+        public DateTime Ngay { get; set; }
+        public decimal Diem { get; set; }
+        public string XepLoai { get; set; } = "";
+        public string TrangThai { get; set; } = "";
+        public List<decimal> ChiTietDiem { get; set; } = new();
+    }
+
+    private List<HocVien> danhSachHocVien = new()
+    {
+        new() { Id = 1, HoTen = "Nguyễn Văn An", Lop = "CNTT01" },
+        new() { Id = 2, HoTen = "Trần Thị Bình", Lop = "CNTT02" },
+        new() { Id = 3, HoTen = "Lê Hoàng Nam", Lop = "QTKD01" },
+        new() { Id = 4, HoTen = "Phạm Minh Anh", Lop = "CNTT01" },
+        new() { Id = 5, HoTen = "Đỗ Quốc Huy", Lop = "KT01" }
+    };
+
+    private List<TieuChi> tieuChi = new()
+    {
+        new() { Ten = "Ý thức tổ chức kỷ luật", DiemToiDa = 25 },
+        new() { Ten = "Kết quả học tập", DiemToiDa = 25 },
+        new() { Ten = "Phẩm chất đạo đức", DiemToiDa = 20 },
+        new() { Ten = "Tham gia hoạt động tập thể", DiemToiDa = 15 },
+        new() { Ten = "Tinh thần trách nhiệm", DiemToiDa = 15 }
+    };
+
+    private List<KetQua> ketQua = new();
+
+    private int hocVienId = 1;
+    private DateTime ngayDanhGia = DateTime.Today;
+    private string trangThai = "Chưa lưu";
+    private string thongBao = "";
+    private bool hienXacNhan = false;
+
+    private HocVien HocVienHienTai =>
+        danhSachHocVien.First(x => x.Id == hocVienId);
+
+    private decimal TongDiem =>
+        tieuChi.Sum(x => x.Diem);
+
+    private decimal DiemThang10 =>
+        Math.Round(TongDiem / 10m, 2);
+
+    private string XepLoai =>
+        DiemThang10 >= 9 ? "Tốt" :
+        DiemThang10 >= 7.5m ? "Khá" :
+        DiemThang10 >= 5 ? "Đạt" : "Cần cố gắng";
+
+    private string TrangThai => trangThai;
+
+    private bool DaDuyet => trangThai == "Đã duyệt";
+
+    private List<KetQua> KetQuaCaNhan =>
+        ketQua.Where(x => x.HocVienId == hocVienId)
+              .OrderByDescending(x => x.Ngay)
+              .ToList();
+
+    private void ChonHocVien(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int id))
+        {
+            hocVienId = id;
+            TaiPhieu();
+        }
+    }
+
+    private void CapNhatDiem(int index, string? giaTri)
+    {
+        if (DaDuyet) return;
+
+        if (decimal.TryParse(
+            giaTri,
+            System.Globalization.NumberStyles.Number,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out decimal diem))
+        {
+            tieuChi[index].Diem =
+                Math.Clamp(diem, 0m, tieuChi[index].DiemToiDa);
+        }
+        else
+        {
+            tieuChi[index].Diem = 0;
+        }
+
+        trangThai = "Chưa lưu";
+        thongBao = "";
+    }
+
+    private void LuuNhap()
+    {
+        if (DaDuyet) return;
+
+        LuuKetQua("Lưu nháp");
+        trangThai = "Lưu nháp";
+        thongBao = "Đã lưu nháp phiếu đánh giá.";
+    }
+
+    private void MoXacNhanDuyet()
+    {
+        if (!DaDuyet)
+            hienXacNhan = true;
+    }
+
+    private void XacNhanDuyet()
+    {
+        if (DaDuyet) return;
+
+        LuuKetQua("Đã duyệt");
+        trangThai = "Đã duyệt";
+        hienXacNhan = false;
+        thongBao = "Phiếu đã được duyệt và khóa chỉnh sửa.";
+    }
+
+    private void LuuKetQua(string trangThaiMoi)
+    {
+        var cu = ketQua.FirstOrDefault(
+            x => x.HocVienId == hocVienId
+              && x.Ngay.Date == ngayDanhGia.Date);
+
+        if (cu != null && cu.TrangThai == "Đã duyệt")
+        {
+            trangThai = "Đã duyệt";
+            thongBao = "Phiếu đã duyệt không thể ghi đè.";
+            return;
+        }
+
+        var moi = new KetQua
+        {
+            HocVienId = hocVienId,
+            HoTen = HocVienHienTai.HoTen,
+            Lop = HocVienHienTai.Lop,
+            Ngay = ngayDanhGia,
+            Diem = DiemThang10,
+            XepLoai = XepLoai,
+            TrangThai = trangThaiMoi,
+            ChiTietDiem = tieuChi.Select(x => x.Diem).ToList()
+        };
+
+        if (cu != null)
+            ketQua.Remove(cu);
+
+        ketQua.Add(moi);
+    }
+
+    private void TaiPhieu()
+    {
+        var phieu = ketQua
+            .Where(x => x.HocVienId == hocVienId)
+            .OrderByDescending(x => x.Ngay)
+            .FirstOrDefault();
+
+        foreach (var tc in tieuChi)
+            tc.Diem = 0;
+
+        if (phieu == null)
+        {
+            trangThai = "Chưa lưu";
+            ngayDanhGia = DateTime.Today;
+        }
+        else
+        {
+            trangThai = phieu.TrangThai;
+            ngayDanhGia = phieu.Ngay;
+
+            for (int i = 0;
+                 i < tieuChi.Count && i < phieu.ChiTietDiem.Count;
+                 i++)
+            {
+                tieuChi[i].Diem = phieu.ChiTietDiem[i];
+            }
+        }
+
+        thongBao = "";
+    }
+
+    private void LamMoi()
+    {
+        if (DaDuyet)
+        {
+            thongBao = "Phiếu đã duyệt không thể làm mới.";
+            return;
+        }
+
+        foreach (var tc in tieuChi)
+            tc.Diem = 0;
+
+        trangThai = "Chưa lưu";
+        thongBao = "Đã đặt lại điểm trên biểu mẫu.";
+    }
+}
