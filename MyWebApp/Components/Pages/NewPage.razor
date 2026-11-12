@@ -1,0 +1,15 @@
+@* NewPage.razor — Tương thích các trang cũ, giao diện thống nhất với NewPageNangCao. *@
+@using MyWebApp.Models
+@using Microsoft.AspNetCore.Components
+
+<NewPageNangCao HocVien="@HocVien"
+                 LaThemMoi="@LaThemMoi"
+                 OnSave="@OnSave"
+                 OnCancel="@OnCancel" />
+
+@code {
+    [Parameter, EditorRequired] public HocVien HocVien { get; set; } = new();
+    [Parameter] public bool LaThemMoi { get; set; }
+    [Parameter] public EventCallback<HocVien> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+}

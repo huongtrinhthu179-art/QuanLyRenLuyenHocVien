@@ -1,0 +1,1571 @@
+@page "/hoc-vien/danh-sach"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using System
+@using System.Linq
+@using System.Collections.Generic
+@using System.Globalization
+@using System.Text
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+@using Radzen.Blazor
+@using MyWebApp.Models
+@inject MyWebApp.Data.AppDbContext DbContext
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime HvDropdownJS
+@inject NavigationManager HvNavigation
+
+<style>
+    /* Giao diện có thể co giãn trong layout thanh dọc bên trái. */
+    body:has(.hoc-vien-page),
+    body:has(.hoc-vien-page) .rz-layout,
+    body:has(.hoc-vien-page) .rz-body,
+    body:has(.hoc-vien-page) main {
+        background: #f4f9f6 !important;
+    }
+
+    .hoc-vien-page {
+        min-height: 100vh;
+        background: #f4f9f6;
+        padding: 20px 16px 42px;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
+        color: #173c30;
+    }
+
+    .hv-page-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-bottom: 22px;
+    }
+
+    .hv-heading {
+        margin: 0;
+        color: #163c30;
+        font-size: clamp(24px, 2.2vw, 30px);
+        font-weight: 750;
+    }
+
+    .hv-subheading {
+        margin: 7px 0 0;
+        color: #7b8c83;
+        font-size: 14px;
+    }
+
+    .hv-btn-add {
+        border: none;
+        background: #08744a;
+        color: white;
+        padding: 13px 20px;
+        border-radius: 9px;
+        font: inherit;
+        cursor: pointer;
+        font-weight: 650;
+        box-shadow: 0 4px 10px rgba(7,110,69,.10);
+    }
+
+        .hv-btn-add:hover {
+            background: #086b44;
+        }
+
+        .hv-btn-add:focus-visible {
+            outline: 3px solid #8bdfb1;
+            outline-offset: 3px;
+        }
+
+    .hv-summary {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0,1fr));
+        gap: 13px;
+        margin-bottom: 22px;
+    }
+
+    .hv-stat {
+        padding: 18px 20px;
+        min-height: 110px;
+        border: 1px solid #edf2ef;
+        background: white;
+        border-radius: 14px;
+        box-shadow: 0 4px 16px rgba(24,70,47,.045);
+    }
+
+    .hv-stat-title {
+        color: #819087;
+        font-size: 14px;
+        margin: 0 0 17px;
+    }
+
+    .hv-stat-number {
+        color: #0f5b3d;
+        font-size: 29px;
+        font-weight: 750;
+        margin: 0;
+        line-height: 1;
+    }
+
+        .hv-stat-number.found {
+            color: #148955;
+        }
+
+    .hv-panel {
+        min-width: 0;
+        border: 1px solid #e9f0eb;
+        border-radius: 15px;
+        padding: 20px 17px 22px;
+        background: white;
+        box-shadow: 0 5px 22px rgba(21,65,43,.045);
+    }
+
+    .hv-panel-heading {
+        margin: 0;
+        font-size: 19px;
+        font-weight: 700;
+        color: #1a4837;
+    }
+
+    .hv-panel-desc {
+        margin: 8px 0 22px;
+        color: #849188;
+        font-size: 14px;
+    }
+
+    .hv-search-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+    }
+
+    .hv-search-control {
+        position: relative;
+        flex: 1 1 300px;
+        min-width: 180px;
+    }
+
+        .hv-search-control .rz-textbox {
+            width: 100%;
+            min-height: 44px;
+            padding-left: 43px;
+            border-radius: 10px;
+        }
+
+    .hv-search-magnifier {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #7da393;
+        z-index: 1;
+        pointer-events: none;
+    }
+
+    .hv-search-row .rz-button {
+        min-height: 44px;
+        border-radius: 9px;
+    }
+
+        .hv-search-row .rz-button.rz-primary {
+            background: #08744a;
+        }
+
+    .hv-filter-hint {
+        margin: 0 0 12px;
+        color: #789083;
+        font-size: 13px;
+    }
+    /* Ô chuyển trang: gọn, hiển thị lỗi màu đỏ khi nhập vượt giới hạn. */
+    .hv-page-jump {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 15px;
+    }
+
+    .hv-page-label {
+        font-size: 14px;
+        color: #435e50;
+        font-weight: 600;
+    }
+
+    .hv-page-input {
+        width: 86px;
+        height: 38px;
+        padding: 6px 10px;
+        border: 1px solid #cbd9d0;
+        border-radius: 8px;
+        background: #fff;
+        color: #193d2c;
+        font: inherit;
+    }
+
+        .hv-page-input:focus {
+            outline: 2px solid #83cda2;
+            outline-offset: 1px;
+        }
+
+    .hv-page-go {
+        height: 38px;
+        background: #08744a;
+        color: #fff;
+        border: none;
+        padding: 0 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 600;
+    }
+
+        .hv-page-go:hover:not(:disabled) {
+            background: #086b44;
+        }
+
+        .hv-page-go:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+        }
+
+    .hv-page-summary {
+        color: #77897e;
+        font-size: 13px;
+    }
+
+    .hv-page-error {
+        color: #b91c1c;
+        font-size: 13px;
+        font-weight: 600;
+        text-align: right;
+        margin: 8px 0 0;
+    }
+
+    .hv-table {
+        overflow-x: auto;
+        max-width: 100%;
+        min-width: 0;
+        border: 1px solid #e4eae5;
+        border-radius: 11px;
+    }
+    /* Không để chữ và nút bị ép xuống hàng khi thu hẹp cột. */
+    .hv-nowrap-cell {
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .hv-grid-actions {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        white-space: nowrap;
+    }
+
+        .hv-grid-actions .rz-button {
+            flex-shrink: 0;
+        }
+
+    .hoc-vien-page .rz-grid-table th, .hoc-vien-page .rz-grid-table td {
+        overflow: hidden;
+    }
+
+    .hoc-vien-page .rz-column-title {
+        font-weight: 650;
+        white-space: normal;
+    }
+
+    .hoc-vien-page .rz-grid-table {
+        min-width: 1450px;
+    }
+
+        .hoc-vien-page .rz-grid-table th {
+            background-color: #f8fbf9;
+        }
+
+        .hoc-vien-page .rz-grid-table td, .hoc-vien-page .rz-grid-table th {
+            border-right-color: #e2e9e5;
+        }
+
+    .hv-empty {
+        min-height: 225px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        text-align: center;
+        padding: 28px 10px;
+    }
+
+    .hv-empty-icon {
+        color: #83b99b;
+        font-size: 35px;
+        line-height: 1;
+    }
+
+    .hv-empty-title {
+        font-size: 17px;
+        font-weight: 700;
+        color: #244a38;
+        margin: 0;
+    }
+
+    .hv-empty-desc {
+        font-size: 14px;
+        color: #829087;
+        margin: 0;
+    }
+
+    .hv-status {
+        margin: 0 0 12px;
+        color: #14764c;
+    }
+
+    .hv-error {
+        background: #ffebee;
+        color: #b71c1c;
+        padding: 12px;
+        border-radius: 7px;
+        margin-bottom: 16px;
+    }
+
+    /* Loading toàn màn hình: nền mờ + vòng xoay xanh lá. */
+    .hv-screen-loading {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: rgba(229, 242, 234, .72);
+        -webkit-backdrop-filter: blur(7px);
+        backdrop-filter: blur(7px);
+        animation: hv-loading-in 170ms ease-out both;
+    }
+
+    .hv-loading-card {
+        text-align: center;
+        background: rgba(255,255,255,.91);
+        border: 1px solid rgba(120,181,148,.35);
+        border-radius: 16px;
+        padding: 27px 36px 26px;
+        box-shadow: 0 18px 60px rgba(19,87,55,.12);
+        width: min(390px, calc(100vw - 32px));
+    }
+
+    .hv-green-spinner {
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        margin: 0 auto 16px;
+        border: 5px solid rgba(52,177,113,.17);
+        border-top-color: #0b8a50;
+        border-right-color: #2db979;
+        animation: hv-green-spin 770ms linear infinite;
+    }
+
+    .hv-loading-title {
+        font-size: 18px;
+        color: #0d6542;
+        font-weight: 750;
+        margin: 0;
+    }
+
+    .hv-loading-desc {
+        margin: 8px 0 0;
+        color: #789085;
+        font-size: 13px;
+    }
+
+    .hv-loading-track {
+        height: 5px;
+        background: #dcefe3;
+        border-radius: 6px;
+        margin-top: 18px;
+        overflow: hidden;
+    }
+
+    .hv-loading-progress {
+        background: #1ea766;
+        height: 100%;
+        width: 37%;
+        border-radius: 6px;
+        animation: hv-loading-move 1.05s ease-in-out infinite alternate;
+    }
+
+    @@keyframes hv-green-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@keyframes hv-loading-move {
+        from {
+            transform: translateX(-90%);
+        }
+
+        to {
+            transform: translateX(265%);
+        }
+    }
+
+    @@keyframes hv-loading-in {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    /* Dialog thêm học viên giữ nguyên chức năng, chỉ thống nhất màu. */
+    .hv-button {
+        border: 0;
+        border-radius: 7px;
+        padding: 10px 16px;
+        cursor: pointer;
+        font: inherit;
+        background: #edf1f5;
+        color: #243247;
+    }
+
+        .hv-button:focus-visible {
+            outline: 3px solid #90caf9;
+            outline-offset: 3px;
+        }
+
+    .hv-success {
+        background: #168252;
+        color: white;
+    }
+
+    .hv-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        background: rgba(15,23,42,.48);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        animation: hv-dialog-backdrop 210ms ease-out;
+    }
+
+    /* Các popup có thể phát sinh trong một lớp phủ cuộn riêng.
+       Không để cuộn trang nền làm lệch vị trí bảng chọn Radzen. */
+    body:has(.hv-overlay) { overflow: hidden !important; }
+    body:has(.hv-overlay) .rz-body,
+    body:has(.hv-overlay) main { overscroll-behavior: none; }
+
+    .hv-modal {
+        background: white;
+        color: #243247;
+        border-radius: 13px;
+        width: min(900px, 100%);
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 24px 70px #0004;
+        animation: hv-dialog-show 230ms ease-out;
+    }
+
+    .hv-overlay.dang-dong {
+        animation: hv-dialog-hide 180ms ease-in both;
+        pointer-events: none;
+    }
+
+        .hv-overlay.dang-dong .hv-modal {
+            animation: hv-dialog-hide 180ms ease-in both;
+        }
+
+    .hv-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 24px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+        .hv-header h2 {
+            margin: 0;
+            font-size: 21px;
+        }
+
+    .hv-body {
+        padding: 24px;
+        overflow: auto;
+        overscroll-behavior: contain;
+    }
+
+    .hv-footer {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        margin-top: 24px;
+    }
+
+    .form-hoc-vien {
+        display: grid;
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: 20px;
+    }
+
+    .hv-focus-guard {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+    }
+
+    @@keyframes hv-dialog-backdrop {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    @@keyframes hv-dialog-show {
+        from {
+            opacity: 0;
+            transform: translateY(16px) scale(.97);
+        }
+
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+
+    @@keyframes hv-dialog-hide {
+        from {
+            opacity: 1;
+        }
+
+        to {
+            opacity: 0;
+        }
+    }
+
+    .hv-edit-dialog {
+        animation: hv-dialog-show 230ms ease-out both;
+    }
+
+    .hv-edit-dialog-wrapper .rz-dialog-mask {
+        background: rgba(16,24,40,.48) !important;
+        backdrop-filter: blur(7px);
+    }
+
+    @@media (max-width: 1200px) {
+        .hv-summary {
+            grid-template-columns: repeat(2, minmax(0,1fr));
+        }
+    }
+
+    @@media (max-width: 680px) {
+        .hoc-vien-page {
+            padding: 16px 10px 32px;
+        }
+
+        .hv-summary {
+            grid-template-columns: repeat(2, minmax(0,1fr));
+            gap: 10px;
+        }
+
+        .hv-panel {
+            padding: 17px 12px;
+        }
+
+        .form-hoc-vien {
+            grid-template-columns: 1fr;
+        }
+
+        .hv-body {
+            padding: 16px;
+        }
+
+        .hv-header {
+            padding: 16px;
+        }
+
+        .hv-search-control {
+            flex-basis: 100%;
+        }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .hv-green-spinner, .hv-loading-progress, .hv-screen-loading,
+        .hv-overlay, .hv-modal, .hv-edit-dialog {
+            animation: none !important;
+        }
+    }
+
+    /* Bộ lọc thông minh: mở / đóng mượt, các lựa chọn chỉ dùng thẻ select. */
+    .hv-heading-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .hv-heading-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #e3f3e9;
+        color: #08744a;
+        flex-shrink: 0;
+    }
+
+        .hv-heading-icon svg {
+            width: 22px;
+            height: 22px;
+        }
+
+    .hv-search-form {
+        min-width: 0;
+        margin-bottom: 10px;
+    }
+
+        .hv-search-form .hv-search-row {
+            margin-bottom: 0;
+        }
+
+    .hv-smart-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 10px 13px;
+        min-height: 44px;
+        border: 0;
+        border-radius: 9px;
+        background: #087f51;
+        color: white;
+        font: inherit;
+        font-weight: 650;
+        cursor: pointer;
+        transition: background 180ms, transform 180ms;
+    }
+
+        .hv-smart-toggle:hover {
+            background: #086b46;
+        }
+
+        .hv-smart-toggle:focus-visible {
+            outline: 3px solid #a1dfc1;
+            outline-offset: 2px;
+        }
+
+        .hv-smart-toggle[aria-expanded="true"] {
+            background: #075638;
+        }
+
+    .hv-smart-panel {
+        display: grid;
+        grid-template-rows: 0fr;
+        opacity: 0;
+        transform: none;
+        pointer-events: none;
+        transition: grid-template-rows 280ms ease, opacity 250ms ease;
+    }
+
+        .hv-smart-panel.hv-smart-open {
+            grid-template-rows: 1fr;
+            opacity: 1;
+            transform: none;
+            pointer-events: auto;
+        }
+
+    .hv-smart-inner {
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    .hv-smart-fields {
+        margin: 14px 0 3px;
+        padding: 15px;
+        border: 1px solid #b8dfc8;
+        border-radius: 12px;
+        background: #effaf3;
+        display: grid;
+        grid-template-columns: repeat(4,minmax(0,1fr));
+        gap: 11px;
+    }
+
+    .hv-smart-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+    }
+
+        .hv-smart-field label {
+            color: #27523b;
+            font-size: 13px;
+            font-weight: 650;
+        }
+
+
+
+    .hv-smart-note {
+        grid-column: 1 / -1;
+        font-size: 12px;
+        color: #537762;
+        margin: 0;
+    }
+
+    @@media (max-width: 1100px) {
+        .hv-smart-fields {
+            grid-template-columns: repeat(2, minmax(0,1fr));
+        }
+    }
+
+    @@media (max-width: 540px) {
+        .hv-smart-fields {
+            grid-template-columns: 1fr;
+        }
+
+        .hv-stat {
+            padding: 13px 12px;
+            min-height: 94px;
+        }
+
+        .hv-stat-title {
+            font-size: 12px;
+        }
+
+        .hv-stat-number {
+            font-size: 25px;
+        }
+
+        .hv-heading {
+            font-size: 23px;
+        }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .hv-smart-panel {
+            transition: none;
+        }
+    }
+
+    /* Bảng thuần Blazor: không đòi Radzen ở project mới. */
+    .hoc-vien-page .hv-search-control input {
+        width:100%; min-height:44px; padding:9px 12px 9px 42px;
+        border:1px solid #d2ded7; border-radius:10px; background:#fff; font:inherit;
+    }
+    .hv-action-btn { border:0; border-radius:8px; cursor:pointer; font:inherit; font-weight:650;
+        min-height:42px; padding:9px 15px; background:#08744a; color:white; }
+    .hv-action-btn.secondary { background:#e8eee9; color:#25503c; }
+    .hv-action-btn.danger { background:#b91c1c; color:white; }
+    .hv-action-btn.small { min-height:32px; padding:6px 11px; font-size:13px; }
+    .hv-action-btn:disabled { opacity:.5; cursor:not-allowed; }
+    .hv-plain-table { width:100%; border-collapse:collapse; min-width:830px; font-size:14px; }
+    .hv-plain-table th { background:#edf4f0; color:#27513d; text-align:left;
+        padding:12px 10px; white-space:nowrap; border-bottom:1px solid #dbe6df; }
+    .hv-plain-table td { padding:12px 10px; border-bottom:1px solid #edf1ee; color:#233f30; }
+    .hv-plain-table tbody tr:hover { background:#f7fbf8; }
+    .hv-sort { border:0; background:none; color:inherit; font:inherit; font-weight:700;
+        padding:0; cursor:pointer; }
+    .hv-pagination { display:flex; gap:7px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+    .hv-pagination button { border:1px solid #cbdbd1; background:#fff; border-radius:7px;
+        min-height:33px; padding:4px 10px; cursor:pointer; color:#23583d; }
+    .hv-pagination button.active { background:#0e8052; border-color:#0e8052; color:white; }
+    .hv-pagination button:disabled { opacity:.35; cursor:not-allowed; }
+    .hv-empty { padding:28px; text-align:center; color:#647b6d; }
+    .hv-screen-loading {position:fixed; inset:0; z-index:2500; background:rgba(230,247,235,.68);
+        display:flex; justify-content:center; align-items:center; backdrop-filter:blur(5px);}
+    .hv-loading-card { background:#fff; padding:28px 38px; border:1px solid #d5e8da;
+        border-radius:16px; box-shadow:0 20px 55px #15452a26; text-align:center; width:min(440px,94vw); }
+    .hv-green-spinner { display:block; width:59px; height:59px; border:5px solid #d6eee0;
+        border-top-color:#07844e; border-radius:50%; margin:auto auto 15px; animation:hv-merged-spin 800ms linear infinite; }
+    .hv-loading-title { font-size:17px; color:#0b6a43; font-weight:700; }
+    @@keyframes hv-merged-spin { to {transform:rotate(360deg)} }
+    .hv-popup-section { width: min(1060px, calc(100vw - 32px)); max-height: min(92vh, 860px); }
+    .hv-modal .hv-body { padding:12px 22px 16px; overflow-y:auto; }
+    .hv-popup-section > .hv-header { padding:13px 22px; }
+    .hv-confirm-description { color:#425a4a; line-height:1.6; }
+
+    /* Feedback: dữ liệu lớn không kéo dài trang; tiêu đề dính khi cuộn trong bảng. */
+    .hv-summary { grid-template-columns: repeat(3,minmax(0,1fr)); }
+    .hv-table { max-height:min(560px, 65vh); overflow:auto; overscroll-behavior:contain; }
+    .hv-plain-table { min-width:740px; }
+    .hv-plain-table thead th { position:sticky; top:0; z-index:2; background:#edf4f0; }
+    .hv-person-name { color:#183d2d; font-weight:700; max-width:270px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+    .hv-person-meta { color:#86958c; font-size:11px; margin-top:4px; max-width:300px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .hv-icon-button { width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center;
+        border:1px solid #d8e9de; border-radius:7px; background:#f1f8f4; cursor:pointer;
+        font-size:23px; font-weight:500; line-height:1; }
+    .hv-icon-edit { color:#097b4b; } .hv-icon-edit:hover { background:#dff3e8; }
+    .hv-icon-delete { background:#fff5f5; color:#ba3037; font-size:24px; }
+    .hv-icon-delete:hover { background:#ffe6e6; }
+    .hv-icon-button:focus-visible { outline:3px solid #8fdab2; outline-offset:2px; }
+    .hv-rating-badge { border-radius:6px; padding:5px 7px; font-weight:650; white-space:nowrap; font-size:12px; }
+    .hv-rank-good { color:#137545; background:#e1f5e6; }
+    .hv-rank-fair { color:#246b8f; background:#e6f1fb; }
+    .hv-rank-middle { color:#8e6000; background:#fff5d7; }
+    .hv-rank-low { color:#a33037; background:#ffe8e9; }
+    .hv-pager-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:11px;
+        padding:13px 0 4px; color:#53665a; font-size:13px; }
+    @@media (max-width:1100px) { .hv-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+    /* Dropdown Radzen: ô chọn và bảng lựa chọn cùng bo góc 10px.
+       Popup Radzen có thể được gắn ra ngoài cây DOM của biểu mẫu,
+       nên không giới hạn selector bảng lựa chọn bên trong .hv-smart-field. */
+    .hoc-vien-page .hv-rz-dropdown.rz-dropdown {
+        width: 100% !important;
+        min-width: 0;
+        min-height: 43px;
+        border: 1px solid #ccdcd2 !important;
+        border-radius: 10px !important;
+        background: #fff !important;
+        box-sizing: border-box;
+        color: #263d33;
+    }
+    .hoc-vien-page .hv-page-size-dropdown.rz-dropdown {
+        width: 90px !important; min-width: 90px !important;
+    }
+    .hoc-vien-page .hv-rz-dropdown.rz-dropdown:focus-within,
+    .hoc-vien-page .hv-rz-dropdown.rz-dropdown.rz-state-focus {
+        border-color: #23996a !important;
+        box-shadow: 0 0 0 2px rgba(35,153,106,.16) !important;
+    }
+    .hoc-vien-page .hv-rz-dropdown .rz-dropdown-trigger {
+        border-radius: 0 10px 10px 0 !important;
+    }
+    body:has(.hoc-vien-page) .rz-dropdown-panel {
+        border: 1px solid #ccdcd2 !important;
+        border-radius: 10px !important;
+        box-shadow: 0 9px 24px rgba(21,73,48,.13) !important;
+        overflow: hidden !important;
+        z-index: 3100;
+    }
+    body:has(.hoc-vien-page) .rz-dropdown-panel .rz-dropdown-items-wrapper,
+    body:has(.hoc-vien-page) .rz-dropdown-panel .rz-dropdown-list {
+        border-radius: 10px !important;
+    }
+    body:has(.hoc-vien-page) .rz-dropdown-panel .rz-dropdown-item:hover {
+        background: #e6f4ed;
+    }
+
+    /* Các nút sửa/xóa ở đúng tâm cột Thao tác; thùng rác thay dấu X. */
+    .hv-plain-table th.hv-col-actions,
+    .hv-plain-table td.hv-col-actions { text-align:center; }
+    .hv-plain-table .hv-grid-actions { display:flex; align-items:center; justify-content:center; gap:8px; }
+    .hv-icon-button { width:35px; height:35px; flex:0 0 35px; display:inline-flex;
+        align-items:center; justify-content:center; border-radius:9px; cursor:pointer;
+        border:1px solid #d5e7dc; background:#f4faf6; transition:background-color .15s; }
+    .hv-icon-edit { color:#087a4c; }
+    .hv-icon-edit:hover { background:#e1f5e9; }
+    .hv-icon-delete { color:#bb2636; background:#fff5f5; border-color:#f2dade; }
+    .hv-icon-delete:hover { background:#ffe9e9; }
+    .hv-icon-button:focus-visible { outline:3px solid #8ddbb2; outline-offset:2px; }
+</style>
+<div class="hoc-vien-page">
+    <header class="hv-page-head">
+        <div>
+            <h1 class="hv-heading">♙ Danh sách học viên</h1>
+            <p class="hv-subheading">Tra cứu hồ sơ · Quản lý điểm rèn luyện · Thêm, sửa và xóa bằng popup.</p>
+        </div>
+        <button type="button" class="hv-btn-add" @onclick="MoThem" disabled="@dangTaiToanTrang">＋ Thêm học viên</button>
+    </header>
+
+    <section class="hv-summary" aria-label="Thống kê học viên">
+        <div class="hv-stat"><p class="hv-stat-title">Tổng học viên</p><p class="hv-stat-number">@danhSachGoc.Count</p></div>
+        <div class="hv-stat"><p class="hv-stat-title">Số lớp có học viên</p><p class="hv-stat-number">@DanhSachLop.Count</p></div>
+        <div class="hv-stat"><p class="hv-stat-title">Nam</p><p class="hv-stat-number">@danhSachGoc.Count(h => h.GioiTinh == "Nam")</p></div>
+        <div class="hv-stat"><p class="hv-stat-title">Nữ</p><p class="hv-stat-number">@danhSachGoc.Count(h => h.GioiTinh == "Nữ")</p></div>
+        <div class="hv-stat"><p class="hv-stat-title">Điểm trung bình / 10</p><p class="hv-stat-number">@(danhSachGoc.Any(QuyTacDiemRenLuyen.DaChamDu)
+                ? DiemTrungBinh.ToString("0.0", CultureInfo.GetCultureInfo("vi-VN")) : "—")</p></div>
+        <div class="hv-stat"><p class="hv-stat-title">Học viên tìm thấy</p><p class="hv-stat-number found">@(dangLocBang ? danhSachHienThi.Count.ToString() : "—")</p></div>
+    </section>
+
+    <section class="hv-panel" aria-labelledby="hv-panel-title">
+        <h2 class="hv-panel-heading" id="hv-panel-title">Danh sách hồ sơ</h2>
+        <p class="hv-panel-desc">Hiển thị @danhSachHienThi.Count trên tổng số @danhSachGoc.Count học viên.</p>
+        <form class="hv-search-form" @onsubmit="TimKiem" @onsubmit:preventDefault>
+            <div class="hv-search-row">
+                <div class="hv-search-control">
+                    <span class="hv-search-magnifier" aria-hidden="true">⌕</span>
+                    <input placeholder="Tìm họ tên hoặc số báo danh..." aria-label="Tìm theo họ tên hoặc số báo danh"
+                           @bind="tuKhoaNhap" @bind:event="oninput" disabled="@dangTaiToanTrang" />
+                </div>
+                <button type="button" class="hv-smart-toggle" @onclick="ChuyenBoLocThongMinh"
+                        disabled="@dangTaiToanTrang" aria-expanded="@moBoLocThongMinh">
+                    ⚙ Tìm kiếm thông minh @(moBoLocThongMinh ? "▴" : "▾")
+                </button>
+                <button class="hv-action-btn" type="submit" disabled="@dangTaiToanTrang">Tìm kiếm</button>
+                <button class="hv-action-btn secondary" type="button" @onclick="HuyTimKiem" disabled="@dangTaiToanTrang">Đặt lại</button>
+            </div>
+            <div class="@(moBoLocThongMinh ? "hv-smart-panel hv-smart-open" : "hv-smart-panel")"
+                 inert="@(!moBoLocThongMinh ? "inert" : null)" aria-hidden="@(!moBoLocThongMinh)">
+                <div class="hv-smart-inner">
+                    <div class="hv-smart-fields">
+                        <div class="hv-smart-field">
+                            <label for="hv-gender">Giới tính</label>
+                            <RadzenDropDown id="hv-gender" TValue="string"
+                                            Data="@LuaChonGioiTinh" TextProperty="HienThi" ValueProperty="GiaTri"
+                                            @bind-Value="gioiTinhChon" AllowClear="false"
+                                            Class="hv-rz-dropdown"
+                                            PopupStyle="max-height:min(240px,45dvh);overflow-x:hidden;overflow-y:auto;border-radius:10px;" />
+                        </div>
+                        <div class="hv-smart-field">
+                            <label for="hv-rank">Xếp loại</label>
+                            <RadzenDropDown id="hv-rank" TValue="string"
+                                            Data="@LuaChonXepLoai" TextProperty="HienThi" ValueProperty="GiaTri"
+                                            @bind-Value="xepLoaiChon" AllowClear="false"
+                                            Class="hv-rz-dropdown"
+                                            PopupStyle="max-height:min(240px,45dvh);overflow-x:hidden;overflow-y:auto;border-radius:10px;" />
+                        </div>
+                        <div class="hv-smart-field">
+                            <label for="hv-year">Năm sinh</label>
+                            <RadzenDropDown id="hv-year" TValue="string"
+                                            Data="@LuaChonNamSinh" TextProperty="HienThi" ValueProperty="GiaTri"
+                                            @bind-Value="namSinhChon" AllowClear="false"
+                                            Class="hv-rz-dropdown"
+                                            PopupStyle="max-height:min(240px,45dvh);overflow-x:hidden;overflow-y:auto;border-radius:10px;" />
+                        </div>
+                        <div class="hv-smart-field">
+                            <label for="hv-class">Lớp</label>
+                            <RadzenDropDown id="hv-class" TValue="string"
+                                            Data="@LuaChonLop" TextProperty="HienThi" ValueProperty="GiaTri"
+                                            @bind-Value="lopChon" AllowClear="false"
+                                            Class="hv-rz-dropdown"
+                                            PopupStyle="max-height:min(240px,45dvh);overflow-x:hidden;overflow-y:auto;border-radius:10px;" />
+                        </div>
+                        <div class="hv-smart-field">
+                            <label for="hv-surname">Họ</label>
+                            <RadzenDropDown id="hv-surname" TValue="string"
+                                            Data="@LuaChonHo" TextProperty="HienThi" ValueProperty="GiaTri"
+                                            @bind-Value="hoChon" AllowClear="false"
+                                            Class="hv-rz-dropdown"
+                                            PopupStyle="max-height:min(240px,45dvh);overflow-x:hidden;overflow-y:auto;border-radius:10px;" />
+                        </div>
+                        <p class="hv-smart-note">Bộ lọc giữ nguyên họ, năm sinh, lớp, xếp loại và thêm giới tính. Số liệu Nam/Nữ chỉ tính hồ sơ đã khai giới tính.</p>
+                    </div>
+                </div>
+            </div>
+        </form>
+        <p class="hv-filter-hint">@thongBaoTimKiem</p>
+        @if (!string.IsNullOrWhiteSpace(thongBaoThanhCong)) { <p class="hv-status" role="status">@thongBaoThanhCong</p> }
+        @if (!string.IsNullOrWhiteSpace(thongBaoLoi)) { <div class="hv-error" role="alert">@thongBaoLoi</div> }
+
+        <div class="hv-table" role="region" aria-label="Bảng học viên có thể cuộn" tabindex="0">
+            <table class="hv-plain-table">
+                <thead>
+                    <tr>
+                        <th>STT</th>
+                        <th><button class="hv-sort" type="button" @onclick='() => DoiSapXep("HoTen")'>Họ tên @BieuTuongSapXep("HoTen")</button></th>
+                        <th><button class="hv-sort" type="button" @onclick='() => DoiSapXep("NgaySinh")'>Ngày sinh @BieuTuongSapXep("NgaySinh")</button></th>
+                        <th><button class="hv-sort" type="button" @onclick='() => DoiSapXep("Lop")'>Lớp @BieuTuongSapXep("Lop")</button></th>
+                        <th><button class="hv-sort" type="button" @onclick='() => DoiSapXep("DiemRenLuyen")'>Điểm /10 @BieuTuongSapXep("DiemRenLuyen")</button></th>
+                        <th>Xếp loại</th>
+                        <th class="hv-col-actions">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (danhSachHienThi.Count == 0)
+                    {
+                        <tr><td colspan="7" class="hv-empty">@(dangLocBang ? "Không tìm thấy học viên phù hợp." : "Chưa có học viên trong danh sách.")</td></tr>
+                    }
+                    else
+                    {
+                        @foreach (var muc in DanhSachTrang.Select((hocVien, index) => new { hocVien, index }))
+                        {
+                            <tr @key="muc.hocVien.Id">
+                                <td>@((trangHienTai - 1) * kichThuocTrang + muc.index + 1)</td>
+                                <td>
+                                    <div class="hv-person-name" title="@muc.hocVien.HoTen">@muc.hocVien.HoTen</div>
+                                    <div class="hv-person-meta">@muc.hocVien.QueQuan
+                                        @if (!string.IsNullOrWhiteSpace(muc.hocVien.SoBaoDanh))
+                                        { <span> · SBD: @muc.hocVien.SoBaoDanh</span> }
+                                    </div>
+                                </td>
+                                <td>@muc.hocVien.NgaySinh.ToString("dd/MM/yyyy")</td>
+                                <td>@muc.hocVien.Lop</td>
+                                <td>@(QuyTacDiemRenLuyen.TongKhiDu(muc.hocVien) is double diemDu
+                                    ? diemDu.ToString("0.0", CultureInfo.GetCultureInfo("vi-VN")) : "—")</td>
+                                <td><span class="hv-rating-badge @MauXepLoai(QuyTacDiemRenLuyen.XepLoai(QuyTacDiemRenLuyen.TongKhiDu(muc.hocVien)))">@QuyTacDiemRenLuyen.XepLoai(QuyTacDiemRenLuyen.TongKhiDu(muc.hocVien))</span></td>
+                                <td class="hv-col-actions">
+                                    <div class="hv-grid-actions">
+                                        <button type="button" class="hv-icon-button hv-icon-edit"
+                                                aria-label="Sửa hồ sơ @muc.hocVien.HoTen" title="Sửa hồ sơ"
+                                                @onclick="() => MoSua(muc.hocVien)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4Z"/></svg></button>
+                                        <button type="button" class="hv-icon-button hv-icon-delete"
+                                                aria-label="Xóa hồ sơ @muc.hocVien.HoTen" title="Xóa hồ sơ"
+                                                @onclick="() => HoiXoa(muc.hocVien)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (danhSachHienThi.Count > 0)
+        {
+            <div class="hv-pager-toolbar">
+                <label for="hv-page-size">Số dòng mỗi trang</label>
+                <RadzenDropDown id="hv-page-size" TValue="int" Data="@LuaChonSoDong"
+                                @bind-Value="kichThuocTrang" @bind-Value:after="DatTrangDau"
+                                AllowClear="false" Class="hv-rz-dropdown hv-page-size-dropdown"
+                                Style="width:90px;min-width:90px;"
+                                PopupStyle="max-height:min(200px,45dvh);overflow-y:auto;border-radius:10px;" />
+                <span>Đang xem @DanhSachTrang.Count / @danhSachHienThi.Count học viên</span>
+            </div>
+            <nav class="hv-pagination" aria-label="Phân trang học viên">
+                <button type="button" disabled="@(trangHienTai <= 1)" @onclick="() => ChuyenTrang(trangHienTai - 1)">‹ Trước</button>
+                @foreach (var trang in CacTrangDieuHuong)
+                {
+                    <button type="button" class="@(trangHienTai == trang ? "active" : "")"
+                            @onclick="() => ChuyenTrang(trang)">@trang</button>
+                }
+                <button type="button" disabled="@(trangHienTai >= TongSoTrangChoPhep)" @onclick="() => ChuyenTrang(trangHienTai + 1)">Sau ›</button>
+            </nav>
+            <form class="hv-page-jump" @onsubmit="ChuyenTrangTheoSo" @onsubmit:preventDefault>
+                <label class="hv-page-label" for="hv-page-input">Đến trang</label>
+                <input id="hv-page-input" class="hv-page-input" type="number" min="1" max="@TongSoTrangChoPhep"
+                       placeholder="Số trang" @bind="soTrangNhap" @bind:event="oninput" />
+                <button class="hv-page-go" type="submit">Chuyển</button>
+                <span class="hv-page-summary">Trang @trangHienTai / @TongSoTrangChoPhep</span>
+            </form>
+            @if (!string.IsNullOrWhiteSpace(thongBaoLoiChuyenTrang))
+            { <p class="hv-page-error" role="alert">@thongBaoLoiChuyenTrang</p> }
+        }
+    </section>
+</div>
+
+@if (hienPopup)
+{
+    <div class="hv-overlay" role="presentation">
+        <section class="hv-modal hv-popup-section" role="dialog" aria-modal="true"
+                 aria-labelledby="hv-popup-title" @onkeydown="PhimPopup" tabindex="-1">
+            <div class="hv-header">
+                <h2 id="hv-popup-title">@(laThemMoi ? "Thêm học viên" : "Sửa học viên")</h2>
+                <button type="button" class="hv-action-btn secondary small" aria-label="Đóng cửa sổ" @onclick="DongPopup">✕</button>
+            </div>
+            <div class="hv-body">
+                <NewPageNangCao @key="phienPopup" HocVien="@hocVienDangNhap" LaThemMoi="@laThemMoi"
+                         OnSave="LuuTuPopup" OnCancel="DongPopup" />
+            </div>
+        </section>
+    </div>
+}
+@if (hocVienChoXoa is not null)
+{
+    <div class="hv-overlay">
+        <section class="hv-modal" role="alertdialog" aria-modal="true" aria-labelledby="hv-delete-title" style="max-width:490px">
+            <div class="hv-header"><h2 id="hv-delete-title">Xác nhận xóa học viên</h2></div>
+            <div class="hv-body">
+                <p class="hv-confirm-description">Xóa học viên <strong>@hocVienChoXoa.HoTen</strong> khỏi dữ liệu chung của nhóm? Thao tác này không thể tự hoàn tác.</p>
+                <div class="hv-footer">
+                    <button type="button" class="hv-action-btn secondary" @onclick="HuyXoa">Hủy</button>
+                    <button type="button" class="hv-action-btn danger" @onclick="XoaDaXacNhan">Xóa học viên</button>
+                </div>
+            </div>
+        </section>
+    </div>
+}
+@if (dangTaiToanTrang)
+{
+    <div class="hv-screen-loading" role="status" aria-live="polite">
+        <div class="hv-loading-card">
+            <div class="hv-green-spinner"></div>
+            <p class="hv-loading-title">@thongBaoDangTai</p>
+        </div>
+    </div>
+}
+
+@code {
+    // Điều chỉnh popup Radzen theo tọa độ thực của ô chọn khi trang/popup cuộn.
+    private IJSObjectReference? hvDropdownModule;
+    private IJSObjectReference? hvDropdownHandle;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            var url = HvNavigation.ToAbsoluteUri("js/hv-dropdown-fix.js").ToString();
+            hvDropdownModule = await HvDropdownJS.InvokeAsync<IJSObjectReference>("import", url);
+            hvDropdownHandle = await hvDropdownModule.InvokeAsync<IJSObjectReference>("install");
+        }
+        catch (JSDisconnectedException) { /* Trình duyệt rời trang trong lúc khởi tạo. */ }
+        catch (JSException ex) { System.Diagnostics.Debug.WriteLine($"Không nạp được hỗ trợ dropdown: {ex.Message}"); }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (hvDropdownHandle is not null)
+                await hvDropdownHandle.InvokeVoidAsync("dispose");
+            if (hvDropdownModule is not null)
+                await hvDropdownModule.DisposeAsync();
+        }
+        catch (JSDisconnectedException) { /* Ngắt kết nối khi thoát trang. */ }
+        catch (JSException) { /* DOM đã bị hủy khi thoát trang. */ }
+    }
+
+    // Giá trị rỗng tương đương "Tất cả"; giữ nguyên thuật toán tìm kiếm.
+    private sealed class LuaChonLoc
+    {
+        public string GiaTri { get; set; } = "";
+        public string HienThi { get; set; } = "";
+        public LuaChonLoc(string giaTri, string hienThi)
+        { GiaTri = giaTri; HienThi = hienThi; }
+    }
+
+    private static List<LuaChonLoc> TaoLuaChon(string nhanTatCa, IEnumerable<string> giaTri)
+    {
+        var ketQua = new List<LuaChonLoc> { new("", nhanTatCa) };
+        ketQua.AddRange(giaTri.Select(x => new LuaChonLoc(x, x)));
+        return ketQua;
+    }
+
+    private static List<LuaChonLoc> LuaChonGioiTinh => TaoLuaChon("Tất cả", ["Nam", "Nữ"]);
+    private static readonly int[] LuaChonSoDong = [10, 20, 50];
+    private List<LuaChonLoc> LuaChonXepLoai => TaoLuaChon("Tất cả xếp loại", DanhSachXepLoai);
+    private List<LuaChonLoc> LuaChonNamSinh => TaoLuaChon("Tất cả năm sinh", DanhSachNamSinh.Select(n => n.ToString()));
+    private List<LuaChonLoc> LuaChonLop => TaoLuaChon("Tất cả lớp", DanhSachLop);
+    private List<LuaChonLoc> LuaChonHo => TaoLuaChon("Tất cả các họ", DanhSachHo);
+
+    private int kichThuocTrang = 10;
+    private List<HocVien> danhSachGoc = [];
+    private List<HocVien> danhSachHienThi = [];
+    private bool dangTaiToanTrang = true;
+    private string thongBaoDangTai = "Đang tải danh sách học viên...";
+    private string thongBaoLoi = "";
+    private string thongBaoThanhCong = "";
+    private string thongBaoTimKiem = "Tìm theo tên hoặc mở bộ lọc thông minh để tìm theo năm sinh, lớp, họ và xếp loại.";
+    private string tuKhoaNhap = "", tuKhoaDaTim = "";
+    private string xepLoaiChon = "", namSinhChon = "", lopChon = "", hoChon = "", gioiTinhChon = "";
+    private string xepLoaiDaTim = "", namSinhDaTim = "", lopDaTim = "", hoDaTim = "", gioiTinhDaTim = "";
+    private bool dangLocBang;
+    private bool moBoLocThongMinh;
+    private int trangHienTai = 1;
+    private string soTrangNhap = "";
+    private string thongBaoLoiChuyenTrang = "";
+    private string cotSapXep = "Id";
+    private bool tangDan = true;
+    private bool hienPopup, laThemMoi;
+    private int phienPopup;
+    private HocVien hocVienDangNhap = new();
+    private HocVien? hocVienChoXoa;
+
+    private double DiemTrungBinh => danhSachGoc
+        .Select(QuyTacDiemRenLuyen.TongKhiDu).Where(d => d.HasValue)
+        .Select(d => d!.Value).DefaultIfEmpty(0).Average();
+    private List<string> DanhSachLop => danhSachGoc.Select(h => h.Lop?.Trim() ?? "")
+        .Where(l => l.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(l => l).ToList();
+    private List<int> DanhSachNamSinh => danhSachGoc.Select(h => h.NgaySinh.Year).Distinct()
+        .OrderByDescending(n => n).ToList();
+    private List<string> DanhSachHo => danhSachGoc.Select(h => ChuanHoaKhoangTrang(h.HoTen)
+        .Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "")
+        .Where(h => h.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(h => h).ToList();
+    private static readonly string[] DanhSachXepLoai = ["Xuất sắc", "Giỏi", "Khá", "Trung bình", "Không xếp loại", "Chưa chấm"];
+    // Không giới hạn tối đa 10 trang: 400 hồ sơ / 10 dòng => 40 trang.
+    private int TongSoTrangChoPhep => Math.Max(1, (danhSachHienThi.Count + kichThuocTrang - 1) / kichThuocTrang);
+    private IEnumerable<int> CacTrangDieuHuong
+    {
+        get
+        {
+            int batDau = Math.Clamp(trangHienTai - 2, 1, Math.Max(1, TongSoTrangChoPhep - 4));
+            return Enumerable.Range(batDau, Math.Min(5, TongSoTrangChoPhep - batDau + 1));
+        }
+    }
+    private List<HocVien> DanhSachTrang => DanhSachSapXep
+        .Skip((trangHienTai - 1) * kichThuocTrang).Take(kichThuocTrang).ToList();
+    private IEnumerable<HocVien> DanhSachSapXep => (cotSapXep, tangDan) switch
+    {
+        ("HoTen", true) => danhSachHienThi.OrderBy(h => h.HoTen),
+        ("HoTen", false) => danhSachHienThi.OrderByDescending(h => h.HoTen),
+        ("Lop", true) => danhSachHienThi.OrderBy(h => h.Lop),
+        ("Lop", false) => danhSachHienThi.OrderByDescending(h => h.Lop),
+        ("NgaySinh", true) => danhSachHienThi.OrderBy(h => h.NgaySinh),
+        ("NgaySinh", false) => danhSachHienThi.OrderByDescending(h => h.NgaySinh),
+        ("DiemRenLuyen", true) => danhSachHienThi.OrderBy(h => QuyTacDiemRenLuyen.TongKhiDu(h) ?? double.MaxValue),
+        ("DiemRenLuyen", false) => danhSachHienThi.OrderByDescending(h => QuyTacDiemRenLuyen.TongKhiDu(h) ?? double.MinValue),
+        ("Id", false) => danhSachHienThi.OrderByDescending(h => h.Id),
+        _ => danhSachHienThi.OrderBy(h => h.Id)
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Dùng cùng EF Core DbContext/model với DSHocVien của nhóm; không sinh 400 dữ liệu giả.
+        try { await TaiDanhSachAsync(); }
+        catch (Exception ex) { thongBaoLoi = "Không thể tải dữ liệu học viên: " + ex.Message; }
+        finally { dangTaiToanTrang = false; }
+    }
+
+    private async Task TaiDanhSachAsync()
+    {
+        danhSachGoc = await DbContext.HocViens.AsNoTracking()
+            .OrderBy(h => h.Id).ToListAsync();
+        CapNhatDanhSachHienThi();
+    }
+
+    private static HocVien SaoChep(HocVien h) => new()
+    {
+        Id = h.Id, HoTen = h.HoTen, NgaySinh = h.NgaySinh, Lop = h.Lop,
+        // Chỉ giữ giá trị cũ trong bộ nhớ; không hiển thị hay chỉnh "Địa chỉ hiện tại".
+        DiaChiHienTai = h.DiaChiHienTai,
+        QueQuan = h.QueQuan, SoBaoDanh = h.SoBaoDanh, GioiTinh = h.GioiTinh,
+        Email = h.Email, SoDienThoai = h.SoDienThoai, DanhGia = h.DanhGia,
+        DiemTieuChi1 = h.DiemTieuChi1, DiemTieuChi2 = h.DiemTieuChi2,
+        DiemTieuChi3 = h.DiemTieuChi3, DiemTieuChi4 = h.DiemTieuChi4,
+        DiemTieuChi5 = h.DiemTieuChi5, DiemRenLuyen = h.DiemRenLuyen
+    };
+
+    private void ChuyenBoLocThongMinh() => moBoLocThongMinh = !moBoLocThongMinh;
+    private string MoTaDieuKien()
+    {
+        var dieuKien = new List<string>();
+        if (tuKhoaDaTim.Length > 0) dieuKien.Add($"tên: {tuKhoaDaTim}");
+        if (xepLoaiDaTim.Length > 0) dieuKien.Add($"xếp loại: {xepLoaiDaTim}");
+        if (gioiTinhDaTim.Length > 0) dieuKien.Add($"giới tính: {gioiTinhDaTim}");
+        if (namSinhDaTim.Length > 0) dieuKien.Add($"năm sinh: {namSinhDaTim}");
+        if (lopDaTim.Length > 0) dieuKien.Add($"lớp: {lopDaTim}");
+        if (hoDaTim.Length > 0) dieuKien.Add($"họ: {hoDaTim}");
+        return dieuKien.Count == 0 ? "tất cả học viên" : string.Join(", ", dieuKien);
+    }
+
+    // 1) Chỉ chuẩn hóa khoảng trắng để so khớp: bỏ khoảng trắng thừa đầu/cuối,
+    //    gộp mọi chuỗi khoảng trắng liên tiếp (kể cả Tab) thành một dấu cách.
+    private static string ChuanHoaKhoangTrang(string? noiDung)
+    {
+        return string.Join(" ", (noiDung ?? string.Empty)
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    // 2) So sánh không phân biệt chữ hoa/thường và dấu tiếng Việt.
+    //    KHÔNG sửa dữ liệu HoTen gốc: chỉ chuẩn hóa bản dùng để tìm kiếm.
+    //    Giữ nguyên chữ, số, ký tự khác; không đoán từ hay tự sửa chính tả.
+    private static string ChuanHoaTimKiem(string? noiDung)
+    {
+        string vanBan = ChuanHoaKhoangTrang(noiDung)
+            .Normalize(NormalizationForm.FormD);
+
+        var ketQua = new StringBuilder(vanBan.Length);
+        foreach (char kyTu in vanBan)
+        {
+            var loai = CharUnicodeInfo.GetUnicodeCategory(kyTu);
+            if (loai == UnicodeCategory.NonSpacingMark ||
+                loai == UnicodeCategory.SpacingCombiningMark ||
+                loai == UnicodeCategory.EnclosingMark)
+                continue;
+
+            // Đ/đ không bị tách thành d bằng Unicode Normalize, nên xử lý riêng.
+            ketQua.Append(kyTu is 'đ' or 'Đ' ? 'd' : char.ToLowerInvariant(kyTu));
+        }
+
+        return ketQua.ToString();
+    }
+
+    // 3) Nếu từ khóa có dấu tiếng Việt, coi đó là một từ hoàn chỉnh:
+    //    "Tú" chỉ khớp "Tú", không khớp "Tuấn";
+    //    "Hoà" không khớp "Hoàng". Với từ không dấu, vẫn tìm
+    //    linh hoạt từ các chữ cái đầu như "Tu" -> "Tú", "Tuấn".
+    private static bool CoDauTiengViet(string tu)
+    {
+        foreach (char kyTu in tu.Normalize(NormalizationForm.FormD))
+        {
+            if (kyTu == 'đ' || kyTu == 'Đ') return true;
+
+            var loai = CharUnicodeInfo.GetUnicodeCategory(kyTu);
+            if (loai == UnicodeCategory.NonSpacingMark ||
+                loai == UnicodeCategory.SpacingCombiningMark ||
+                loai == UnicodeCategory.EnclosingMark)
+                return true;
+        }
+        return false;
+    }
+
+    // Dấu vẫn phải đúng nếu người dùng nhập có dấu.
+    // So tập dấu thay vì vị trí của dấu để chấp nhận cách viết "Hoà"/"Hòa".
+    private static string ChuKyDau(string tu)
+    {
+        var cacDau = new List<char>();
+        foreach (char kyTu in tu.Normalize(NormalizationForm.FormD))
+        {
+            if (kyTu == 'đ' || kyTu == 'Đ')
+            {
+                cacDau.Add('#'); // Phân biệt đ với d khi nhập rõ chữ đ.
+                continue;
+            }
+
+            var loai = CharUnicodeInfo.GetUnicodeCategory(kyTu);
+            if (loai == UnicodeCategory.NonSpacingMark ||
+                loai == UnicodeCategory.SpacingCombiningMark ||
+                loai == UnicodeCategory.EnclosingMark)
+                cacDau.Add(kyTu);
+        }
+        cacDau.Sort();
+        return new string(cacDau.ToArray());
+    }
+
+    private static bool KhopMotTu(string tuTrongHoTen, string tuCanTim)
+    {
+        string tenKhongDau = ChuanHoaTimKiem(tuTrongHoTen);
+        string timKhongDau = ChuanHoaTimKiem(tuCanTim);
+        if (timKhongDau.Length == 0) return false;
+
+        if (CoDauTiengViet(tuCanTim))
+        {
+            // Từ có dấu: phải khớp TRỌN VẸN từ và đúng loại dấu.
+            return tenKhongDau.Equals(timKhongDau, StringComparison.Ordinal)
+                && ChuKyDau(tuTrongHoTen).Equals(ChuKyDau(tuCanTim), StringComparison.Ordinal);
+        }
+
+        // Từ không dấu: cho phép khớp từ ký tự đầu; không tự sửa nội dung.
+        return tenKhongDau.StartsWith(timKhongDau, StringComparison.Ordinal);
+    }
+
+    // 4) Từ khóa độc lập, không cần đúng thứ tự.
+    //    Mỗi từ trong họ tên chỉ được dùng để khớp một từ khóa.
+    //    Dùng thử các khả năng thay vì chọn tham lam để tránh ghép nhầm.
+    private static bool KhopTatCaTu(string[] tuTrongTen, string[] tuCanTim,
+                                    bool[] daSuDung, int viTriTuKhoa)
+    {
+        if (viTriTuKhoa == tuCanTim.Length) return true;
+
+        for (int i = 0; i < tuTrongTen.Length; i++)
+        {
+            if (daSuDung[i] || !KhopMotTu(tuTrongTen[i], tuCanTim[viTriTuKhoa]))
+                continue;
+
+            daSuDung[i] = true;
+            if (KhopTatCaTu(tuTrongTen, tuCanTim, daSuDung, viTriTuKhoa + 1))
+                return true;
+            daSuDung[i] = false;
+        }
+        return false;
+    }
+
+    private static bool KhopDauTen(HocVien h, string tuKhoa)
+    {
+        string hoTen = ChuanHoaKhoangTrang(h.HoTen);
+        string canTim = ChuanHoaKhoangTrang(tuKhoa);
+        if (canTim.Length == 0) return true;
+        if (hoTen.Length == 0) return false;
+
+        string[] tuTrongTen = hoTen.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        string[] tuCanTim = canTim.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (tuCanTim.Length > tuTrongTen.Length) return false;
+
+        // Ưu tiên kiểm tra từ dài hơn; vẫn xét đầy đủ mọi cách khớp.
+        tuCanTim = tuCanTim.OrderByDescending(t => t.Length).ToArray();
+        return KhopTatCaTu(tuTrongTen, tuCanTim, new bool[tuTrongTen.Length], 0);
+    }
+
+
+    private void CapNhatDanhSachHienThi()
+    {
+        danhSachHienThi = !dangLocBang ? danhSachGoc.ToList() : danhSachGoc.Where(h =>
+            (tuKhoaDaTim.Length == 0 || KhopDauTen(h, tuKhoaDaTim) ||
+                (h.SoBaoDanh ?? "").StartsWith(tuKhoaDaTim, StringComparison.OrdinalIgnoreCase)) &&
+            (gioiTinhDaTim.Length == 0 || h.GioiTinh == gioiTinhDaTim) &&
+            (xepLoaiDaTim.Length == 0 || QuyTacDiemRenLuyen.XepLoai(QuyTacDiemRenLuyen.TongKhiDu(h)) == xepLoaiDaTim) &&
+            (namSinhDaTim.Length == 0 || h.NgaySinh.Year.ToString(CultureInfo.InvariantCulture) == namSinhDaTim) &&
+            (lopDaTim.Length == 0 || string.Equals(h.Lop, lopDaTim, StringComparison.OrdinalIgnoreCase)) &&
+            (hoDaTim.Length == 0 || string.Equals(
+                ChuanHoaKhoangTrang(h.HoTen).Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(),
+                hoDaTim, StringComparison.OrdinalIgnoreCase))).ToList();
+        trangHienTai = Math.Min(trangHienTai, TongSoTrangChoPhep);
+    }
+
+    private void TimKiem()
+    {
+        tuKhoaDaTim = ChuanHoaKhoangTrang(tuKhoaNhap);
+        xepLoaiDaTim = xepLoaiChon;
+        gioiTinhDaTim = gioiTinhChon;
+        namSinhDaTim = namSinhChon;
+        lopDaTim = lopChon;
+        hoDaTim = hoChon;
+        dangLocBang = true;
+        trangHienTai = 1;
+        thongBaoLoi = "";
+        thongBaoThanhCong = "";
+        CapNhatDanhSachHienThi();
+        thongBaoTimKiem = $"Đã tìm thấy {danhSachHienThi.Count} học viên theo điều kiện: {MoTaDieuKien()}.";
+    }
+
+    private void HuyTimKiem()
+    {
+        tuKhoaNhap = tuKhoaDaTim = "";
+        xepLoaiChon = namSinhChon = lopChon = hoChon = gioiTinhChon = "";
+        xepLoaiDaTim = namSinhDaTim = lopDaTim = hoDaTim = gioiTinhDaTim = "";
+        dangLocBang = false;
+        moBoLocThongMinh = false;
+        trangHienTai = 1;
+        thongBaoLoi = thongBaoThanhCong = "";
+        thongBaoTimKiem = "Đã hiển thị tất cả học viên.";
+        CapNhatDanhSachHienThi();
+    }
+
+    private void DatTrangDau() { trangHienTai = 1; thongBaoLoiChuyenTrang = ""; }
+    private string MauXepLoai(string loai) => loai switch
+    {
+        "Xuất sắc" or "Giỏi" => "hv-rank-good",
+        "Khá" => "hv-rank-fair",
+        "Trung bình" => "hv-rank-middle",
+        _ => "hv-rank-low"
+    };
+
+    private void DoiSapXep(string cot)
+    {
+        tangDan = cot == cotSapXep ? !tangDan : true;
+        cotSapXep = cot;
+        trangHienTai = 1;
+    }
+    private string BieuTuongSapXep(string cot) => cot != cotSapXep ? "↕" : tangDan ? "↑" : "↓";
+    private void ChuyenTrang(int trang)
+    {
+        if (trang >= 1 && trang <= TongSoTrangChoPhep)
+        { trangHienTai = trang; thongBaoLoiChuyenTrang = ""; }
+    }
+    private void ChuyenTrangTheoSo()
+    {
+        if (!int.TryParse(soTrangNhap, out int trang) || trang < 1 || trang > TongSoTrangChoPhep)
+        { thongBaoLoiChuyenTrang = $"Số trang phải từ 1 đến {TongSoTrangChoPhep}."; return; }
+        if (trang > TongSoTrangChoPhep)
+        { thongBaoLoiChuyenTrang = $"Danh sách chỉ có {TongSoTrangChoPhep} trang có thể xem."; return; }
+        ChuyenTrang(trang);
+    }
+
+    private void MoThem()
+    {
+        if (dangTaiToanTrang) return;
+        hocVienDangNhap = new HocVien { NgaySinh = DateTime.Today, DiemRenLuyen = 0.0 };
+        laThemMoi = true; phienPopup++; hienPopup = true;
+        thongBaoLoi = thongBaoThanhCong = "";
+    }
+    private void MoSua(HocVien h)
+    {
+        if (dangTaiToanTrang) return;
+        hocVienDangNhap = SaoChep(h);
+        laThemMoi = false; phienPopup++; hienPopup = true;
+        thongBaoLoi = thongBaoThanhCong = "";
+    }
+    private void DongPopup() => hienPopup = false;
+    private void PhimPopup(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") DongPopup();
+    }
+
+    private static bool DiemHopLe(double? diem) => !diem.HasValue ||
+        (!double.IsNaN(diem.Value) && !double.IsInfinity(diem.Value) && diem.Value >= 0 && diem.Value <= 10);
+
+    private async Task LuuTuPopup(HocVien nhap)
+    {
+        // Callback chỉ dùng lớp HocVien của nhóm, không sử dụng kho dữ liệu mẫu cũ.
+        if (string.IsNullOrWhiteSpace(nhap.HoTen))
+            throw new InvalidOperationException("Vui lòng nhập họ tên học viên.");
+        if (nhap.NgaySinh == default || nhap.NgaySinh.Date > DateTime.Today)
+            throw new InvalidOperationException("Ngày sinh không hợp lệ.");
+        if (string.IsNullOrWhiteSpace(nhap.Lop))
+            throw new InvalidOperationException("Vui lòng nhập lớp học viên.");
+        // Kiểm tra ở tầng lưu để không thể bỏ qua giới hạn trong giao diện popup.
+        var ketQuaDiem = QuyTacDiemRenLuyen.KiemTra(nhap);
+        if (nhap.Id != 0 && !ketQuaDiem.HopLe)
+            throw new InvalidOperationException(ketQuaDiem.ThongBao);
+        string sbd = (nhap.SoBaoDanh ?? "").Trim();
+        if (sbd.Length > 0 && await DbContext.HocViens.AsNoTracking()
+            .AnyAsync(h => h.SoBaoDanh == sbd && h.Id != nhap.Id))
+            throw new InvalidOperationException("Số báo danh đã được sử dụng.");
+
+        if (nhap.Id == 0)
+        {
+            DbContext.HocViens.Add(new HocVien
+            {
+                HoTen = nhap.HoTen.Trim(), NgaySinh = nhap.NgaySinh,
+                Lop = nhap.Lop.Trim(),
+                QueQuan = (nhap.QueQuan ?? "").Trim(), SoBaoDanh = sbd, GioiTinh = nhap.GioiTinh,
+                Email = (nhap.Email ?? "").Trim(), SoDienThoai = (nhap.SoDienThoai ?? "").Trim(),
+                DanhGia = "", // chỉ nhập nhận xét khi Sửa
+                DiemTieuChi1 = null, DiemTieuChi2 = null, DiemTieuChi3 = null,
+                DiemTieuChi4 = null, DiemTieuChi5 = null,
+                DiemRenLuyen = 0.0 // chưa được chấm; không tự gán 8.0
+            });
+        }
+        else
+        {
+            var goc = await DbContext.HocViens.FindAsync(nhap.Id)
+                ?? throw new InvalidOperationException("Không tìm thấy học viên cần sửa.");
+            goc.HoTen = nhap.HoTen.Trim();
+            goc.NgaySinh = nhap.NgaySinh;
+            goc.Lop = nhap.Lop.Trim();
+            // Nếu thiếu tiêu chí: giữ điểm tổng lịch sử (không tính tổng giả).
+            // Khi đủ 5 tiêu chí: tính lại và chỉ lưu tổng do hệ thống cộng.
+            if (ketQuaDiem.TongDiem.HasValue)
+                goc.DiemRenLuyen = ketQuaDiem.TongDiem.Value;
+            goc.QueQuan = (nhap.QueQuan ?? "").Trim();
+            goc.SoBaoDanh = sbd;
+            goc.GioiTinh = nhap.GioiTinh;
+            goc.Email = (nhap.Email ?? "").Trim();
+            goc.SoDienThoai = (nhap.SoDienThoai ?? "").Trim();
+            goc.DanhGia = (nhap.DanhGia ?? "").Trim();
+            goc.DiemTieuChi1 = nhap.DiemTieuChi1;
+            goc.DiemTieuChi2 = nhap.DiemTieuChi2;
+            goc.DiemTieuChi3 = nhap.DiemTieuChi3;
+            goc.DiemTieuChi4 = nhap.DiemTieuChi4;
+            goc.DiemTieuChi5 = nhap.DiemTieuChi5;
+        }
+
+        await DbContext.SaveChangesAsync();
+        await TaiDanhSachAsync();
+        hienPopup = false;
+        thongBaoThanhCong = nhap.Id == 0
+            ? $"Đã thêm học viên {nhap.HoTen.Trim()}." : $"Đã cập nhật học viên {nhap.HoTen.Trim()}.";
+        thongBaoLoi = "";
+    }
+
+    private void HuyXoa() => hocVienChoXoa = null;
+    private void HoiXoa(HocVien h)
+    {
+        if (dangTaiToanTrang) return;
+        hocVienChoXoa = h;
+        thongBaoLoi = "";
+    }
+    private async Task XoaDaXacNhan()
+    {
+        if (hocVienChoXoa is null || dangTaiToanTrang) return;
+        var id = hocVienChoXoa.Id;
+        var ten = hocVienChoXoa.HoTen;
+        hocVienChoXoa = null;
+        dangTaiToanTrang = true;
+        thongBaoDangTai = "Đang xóa học viên...";
+        try
+        {
+            var goc = await DbContext.HocViens.FindAsync(id);
+            if (goc is null)
+                throw new InvalidOperationException("Học viên không tồn tại hoặc đã bị xóa.");
+            DbContext.HocViens.Remove(goc);
+            await DbContext.SaveChangesAsync();
+            await TaiDanhSachAsync();
+            thongBaoThanhCong = $"Đã xóa học viên {ten}.";
+            thongBaoLoi = "";
+        }
+        catch (Exception ex) { thongBaoLoi = "Không thể xóa học viên: " + ex.Message; }
+        finally { dangTaiToanTrang = false; }
+    }
+}

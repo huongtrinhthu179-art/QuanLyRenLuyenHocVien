@@ -215,12 +215,39 @@ namespace MyWebApp.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("DanhGia")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("DiaChiHienTai")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<double>("DiemRenLuyen")
                         .HasColumnType("REAL");
+
+                    b.Property<double?>("DiemTieuChi1")
+                        .HasColumnType("REAL");
+
+                    b.Property<double?>("DiemTieuChi2")
+                        .HasColumnType("REAL");
+
+                    b.Property<double?>("DiemTieuChi3")
+                        .HasColumnType("REAL");
+
+                    b.Property<double?>("DiemTieuChi4")
+                        .HasColumnType("REAL");
+
+                    b.Property<double?>("DiemTieuChi5")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GioiTinh")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("HoTen")
                         .IsRequired()
@@ -231,6 +258,18 @@ namespace MyWebApp.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("NgaySinh")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("QueQuan")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SoBaoDanh")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SoDienThoai")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -316,6 +355,28 @@ namespace MyWebApp.Migrations
                     b.ToTable("TieuChiDanhGias");
                 });
 
+            modelBuilder.Entity("MyWebApp.Models.UserProfile", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DateOfBirth")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FullName")
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Gender")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("UserProfiles");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -363,6 +424,15 @@ namespace MyWebApp.Migrations
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("MyWebApp.Models.UserProfile", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithOne()
+                        .HasForeignKey("MyWebApp.Models.UserProfile", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

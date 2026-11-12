@@ -1,0 +1,634 @@
+@* NewPage.razor - Popup chung cho THÊM và SỬA; dùng đúng MyWebApp.Models.HocVien. *@
+@using System
+@using System.Linq
+@using System.Globalization
+@using System.Threading.Tasks
+@using Microsoft.AspNetCore.Components
+@using MyWebApp.Models
+@using Radzen.Blazor
+
+<style>
+    /* Phần nội dung của Dialog, không thay đổi dịch vụ mở Dialog bên ngoài. */
+    .hv-edit-content {
+        padding: 12px 6px 6px;
+        color: #183328;
+        animation: hv-edit-content-in 220ms ease-out both;
+    }
+
+        .hv-edit-content.dang-dong {
+            animation: hv-edit-content-out 180ms ease-in both;
+            pointer-events: none;
+        }
+
+    .hv-edit-form-reveal {
+        animation: hv-edit-form-appear 340ms cubic-bezier(.2,.8,.2,1) both;
+    }
+
+    .hv-edit-note {
+        color: #6b7e77;
+        font-size: 13px;
+        margin: 0 0 17px;
+    }
+
+    .hv-edit-error {
+        margin: 0 0 14px;
+        padding: 10px 12px;
+        border: 1px solid #f6a5a5;
+        border-radius: 7px;
+        background: #fff1f2;
+        color: #b91c1c;
+    }
+
+    /* Bố cục 12 cột: 4 - 3 - 2 - 3 / 3 - 3 - 3 - 3 / 12. */
+    .hv-edit-form-grid {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        column-gap: 13px;
+        row-gap: 24px;
+        align-items: start;
+    }
+
+    .hv-edit-field {
+        min-width: 0;
+    }
+
+    .hv-edit-span-2 {
+        grid-column: span 2;
+    }
+
+    .hv-edit-span-3 {
+        grid-column: span 3;
+    }
+
+    .hv-edit-span-4 {
+        grid-column: span 4;
+    }
+
+    .hv-edit-span-12 {
+        grid-column: span 12;
+    }
+
+    .hv-edit-form-grid .rz-form-field,
+    .hv-edit-form-grid .rz-textbox,
+    .hv-edit-form-grid .rz-dropdown,
+    .hv-edit-form-grid .rz-datepicker {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+        /* Đảm bảo biểu tượng lịch và vùng nhập ngày đều vừa trong cột hẹp. */
+        .hv-edit-form-grid .rz-datepicker input {
+            min-width: 0;
+        }
+
+    .hv-edit-validation {
+        display: block;
+        margin-top: 5px;
+        font-size: 12px;
+    }
+
+    .hv-edit-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 28px;
+    }
+
+        .hv-edit-actions .hv-edit-cancel-btn,
+        .hv-edit-actions .hv-edit-save-btn {
+            min-height: 43px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            padding: 0 20px;
+        }
+
+        .hv-edit-actions .hv-edit-cancel-btn {
+            min-width: 158px;
+            background: #e5e7eb !important;
+            border: 1px solid #b4b9bd !important;
+            color: #303a40 !important;
+        }
+
+        .hv-edit-actions .hv-edit-save-btn {
+            min-width: 110px;
+            background: #36ba57 !important;
+            border: 1px solid #239444 !important;
+            color: #fff !important;
+        }
+
+    /* Phiên bản rút gọn trước đây vẫn được hỗ trợ nếu còn được gọi ở nơi khác. */
+    .hv-edit-inline {
+        padding: 0;
+        animation: none;
+    }
+
+        .hv-edit-inline .hv-edit-form-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            column-gap: 12px;
+            row-gap: 14px;
+        }
+
+        .hv-edit-inline .hv-edit-field {
+            grid-column: auto;
+        }
+
+        .hv-edit-inline .hv-edit-actions {
+            margin-top: 14px;
+        }
+
+        .hv-edit-inline .hv-edit-form-reveal {
+            animation: none;
+        }
+
+    /* Animation xanh lá giữ từ NewPage trước đó, dùng chung khi mở và lưu. */
+    .hv-edit-opening {
+        position: relative;
+        min-height: 300px;
+        padding: 28px 16px 20px;
+        overflow: hidden;
+    }
+
+    .hv-edit-opening-body {
+        position: relative;
+        max-width: 430px;
+        margin: 0 auto;
+        text-align: center;
+        z-index: 1;
+    }
+
+    .hv-edit-spinner {
+        width: 62px;
+        height: 62px;
+        border: 5px solid #dcfce7;
+        border-top-color: #15803d;
+        border-right-color: #22c55e;
+        border-radius: 50%;
+        margin: 0 auto 18px;
+        animation: hv-edit-spin 850ms linear infinite;
+    }
+
+    .hv-edit-opening-title {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        color: #166534;
+    }
+
+    .hv-edit-opening-desc {
+        margin: 7px 0 20px;
+        font-size: 14px;
+        color: #64748b;
+    }
+
+    .hv-edit-opening-progress {
+        max-width: 340px;
+        margin: 0 auto 18px;
+    }
+
+    .hv-edit-skeleton-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin: 20px auto 0;
+        max-width: 520px;
+        opacity: .55;
+        filter: blur(1.2px);
+    }
+
+    .hv-edit-skeleton {
+        height: 39px;
+        border-radius: 8px;
+        background: #e5f5ea;
+        background-image: linear-gradient(100deg, #e5f5ea 15%, #f7fff9 40%, #e5f5ea 65%);
+        background-size: 200% 100%;
+        animation: hv-edit-shimmer 1.35s linear infinite;
+    }
+
+    @@keyframes hv-edit-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @@keyframes hv-edit-shimmer {
+        to {
+            background-position-x: -200%;
+        }
+    }
+
+    @@keyframes hv-edit-content-in {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@keyframes hv-edit-content-out {
+        from {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        to {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+    }
+
+    @@keyframes hv-edit-form-appear {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+            filter: blur(3px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+            filter: blur(0);
+        }
+    }
+
+    /* Thu nhỏ màn hình thì xếp lại 2 cột, rồi 1 cột. */
+    @@media (max-width: 900px) {
+        .hv-edit-form-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+            .hv-edit-form-grid .hv-edit-field {
+                grid-column: span 1;
+            }
+
+            .hv-edit-form-grid .hv-edit-span-12 {
+                grid-column: span 2;
+            }
+    }
+
+    @@media (max-width: 600px) {
+        .hv-edit-content {
+            padding: 8px 2px;
+        }
+
+        .hv-edit-form-grid {
+            grid-template-columns: 1fr;
+            row-gap: 17px;
+        }
+
+            .hv-edit-form-grid .hv-edit-field,
+            .hv-edit-form-grid .hv-edit-span-12 {
+                grid-column: span 1;
+            }
+
+        .hv-edit-inline .hv-edit-form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .hv-edit-actions > .rz-button {
+            flex: 1 1 auto;
+        }
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .hv-edit-content, .hv-edit-content.dang-dong,
+        .hv-edit-spinner, .hv-edit-skeleton, .hv-edit-form-reveal {
+            animation: none;
+        }
+    }
+
+    .hv-edit-form-grid .hv-edit-native { box-sizing:border-box; width:100%; min-height:43px;
+        border:1px solid #ccdcd2; border-radius:8px; background:#fff;
+        color:#183a2a; font:inherit; padding:9px 11px; }
+    /* Dropdown Radzen đồng bộ độ cao và bo góc với các ô nhập còn lại. */
+    .hv-edit-form-grid .hv-gender-dropdown {
+        min-height: 43px;
+        border-radius: 8px;
+        border: 1px solid #ccdcd2;
+    }
+    .hv-edit-form-grid label { display:block; color:#284b36; font-size:13px;
+        font-weight:650; margin-bottom:6px; }
+    .hv-edit-form-grid .hv-edit-native:focus { outline:2px solid #81cba1; }
+    .hv-edit-help {font-size:12px; color:#69816d; margin-top:5px;}
+    .hv-edit-rank { background:#f3f7f4; padding:11px; border:1px solid #dbe8de;
+        border-radius:8px; min-height:43px; box-sizing:border-box; color:#165a3b; font-weight:700; }
+    .hv-edit-native-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:10px; margin-top:22px; }
+    .hv-edit-native-actions button { min-height:42px; border:none; border-radius:8px;
+        padding:10px 19px; cursor:pointer; font:inherit; font-weight:700; }
+    .hv-edit-native-actions button:disabled {opacity:.55;cursor:not-allowed;}
+    .hv-edit-native-actions .hv-edit-cancel-btn {background:#e5e9e7;color:#344239;}
+    .hv-edit-native-actions .hv-edit-save-btn {background:#0c8a53;color:white;}
+    .hv-score-five { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px;
+        background:#f4faf6; padding:12px; border-radius:9px; border:1px solid #dcece2; }
+    .hv-score-five label { font-weight:650; font-size:12px; min-height:34px; line-height:1.35; }
+    .hv-score-five label small { color:#607d6b; font-size:11px; display:block; margin-top:3px; }
+    .hv-score-readonly { background:#eff7f1 !important; cursor:not-allowed; }
+    .hv-edit-form-grid textarea.hv-edit-native { min-height:68px; resize:vertical; }
+    @@media (max-width:800px) { .hv-score-five { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+    /* Giao diện của ô chọn Radzen và danh sách xổ xuống đều bo góc 10px. */
+    .hv-edit-form-grid .hv-rz-dropdown.rz-dropdown {
+        width:100% !important;
+        min-height:43px;
+        border:1px solid #ccdcd2 !important;
+        border-radius:10px !important;
+        box-sizing:border-box;
+        background:#fff !important;
+    }
+    .hv-edit-form-grid .hv-rz-dropdown.rz-dropdown:focus-within {
+        border-color:#23996a !important;
+        box-shadow:0 0 0 2px rgba(35,153,106,.16) !important;
+    }
+    .hv-edit-form-grid .hv-rz-dropdown .rz-dropdown-trigger {
+        border-radius:0 10px 10px 0 !important;
+    }
+    /* Popup Radzen gắn vào body, không ở trong form; giới hạn CSS trong trang học viên. */
+    body:has(.hoc-vien-page) .rz-dropdown-panel {
+        border:1px solid #ccdcd2 !important;
+        border-radius:10px !important;
+        overflow:hidden !important;
+        box-shadow:0 9px 24px rgba(21,73,48,.13) !important;
+    }
+    body:has(.hoc-vien-page) .rz-dropdown-panel .rz-dropdown-items-wrapper,
+    body:has(.hoc-vien-page) .rz-dropdown-panel .rz-dropdown-list {
+        border-radius:10px !important;
+    }
+
+    /* Bố cục chung: đủ các trường, ít cuộn trên máy tính; vẫn tự co trên điện thoại. */
+    .hv-edit-content { padding: 4px 2px 2px; }
+    .hv-edit-form-grid { column-gap: 14px; row-gap: 13px; }
+    .hv-edit-span-6 { grid-column: span 6; }
+    .hv-edit-required, .hv-required { color: #b91c1c; }
+    .hv-edit-form-grid label { margin-bottom: 4px; }
+    .hv-edit-form-grid .hv-edit-native,
+    .hv-edit-form-grid .hv-rz-dropdown.rz-dropdown,
+    .hv-edit-rank { border-radius: 10px !important; min-height: 42px; }
+    .hv-edit-form-grid .hv-edit-native { padding: 8px 11px; }
+    .hv-edit-form-grid .hv-edit-rank { display:flex; align-items:center; padding: 7px 10px; }
+    .hv-score-five { padding: 9px; gap: 10px; border-radius: 10px; }
+    .hv-score-five .hv-edit-native { min-height: 39px; }
+    .hv-edit-form-grid textarea.hv-edit-native { min-height: 60px; }
+    .hv-edit-native-actions { margin-top: 14px; }
+    @@media (max-width: 900px) {
+        .hv-edit-form-grid .hv-edit-span-6,
+        .hv-edit-form-grid .hv-edit-span-3,
+        .hv-edit-form-grid .hv-edit-span-2,
+        .hv-edit-form-grid .hv-edit-span-4 { grid-column: span 1; }
+    }
+    @@media (max-width: 600px) {
+        .hv-edit-form-grid .hv-edit-field { grid-column: span 1 !important; }
+        .hv-score-five { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .hv-edit-native-actions { justify-content: stretch; }
+        .hv-edit-native-actions button { flex: 1 1 auto; }
+    }
+</style>
+<div class="hv-edit-content">
+    @if (dangMo || dangLuu)
+    {
+        <div class="hv-edit-opening" role="status" aria-busy="true" aria-live="polite">
+            <div class="hv-edit-opening-body">
+                <div class="hv-edit-spinner" aria-hidden="true"></div>
+                <p class="hv-edit-opening-title">@(dangLuu ? "Đang lưu học viên..." : "Đang mở biểu mẫu học viên...")</p>
+                <p class="hv-edit-opening-desc">@(dangLuu ? "Đang cập nhật cơ sở dữ liệu của nhóm" : "Vui lòng chờ trong giây lát")</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <form class="hv-edit-form-reveal" @onsubmit="LuuHocVien" @onsubmit:preventDefault>
+            <div class="hv-edit-form-grid">
+                <div class="hv-edit-field hv-edit-span-6">
+                    <label for="hv-add-name">Họ và tên <span class="hv-required">*</span></label>
+                    <input id="hv-add-name" class="hv-edit-native" @ref="oHoTen"
+                           @bind="duLieuNhap.HoTen" maxlength="100" required
+                           placeholder="Nhập họ và tên học viên" />
+                </div>
+                <div class="hv-edit-field hv-edit-span-3">
+                    <label for="hv-add-birth">Ngày sinh <span class="hv-required">*</span></label>
+                    <input id="hv-add-birth" class="hv-edit-native" type="date"
+                           @bind="duLieuNhap.NgaySinh" required />
+                </div>
+                <div class="hv-edit-field hv-edit-span-3">
+                    <label for="hv-add-class">Lớp <span class="hv-required">*</span></label>
+                    <input id="hv-add-class" class="hv-edit-native" @bind="duLieuNhap.Lop"
+                           maxlength="30" required placeholder="Ví dụ: B9D57" />
+                </div>
+
+                <div class="hv-edit-field hv-edit-span-4">
+                    <label for="hv-add-native">Quê quán</label>
+                    <input id="hv-add-native" class="hv-edit-native" maxlength="200"
+                           @bind="duLieuNhap.QueQuan" placeholder="Tỉnh / thành phố" />
+                </div>
+                <div class="hv-edit-field hv-edit-span-4">
+                    <label for="hv-add-sbd">Số báo danh</label>
+                    <input id="hv-add-sbd" class="hv-edit-native" maxlength="40"
+                           @bind="duLieuNhap.SoBaoDanh" placeholder="Nhập số báo danh" />
+                </div>
+                <div class="hv-edit-field hv-edit-span-4">
+                    <label for="hv-add-sex">Giới tính</label>
+                    <RadzenDropDown id="hv-add-sex" TValue="string"
+                                    Data="@DanhSachGioiTinh"
+                                    @bind-Value="GioiTinhHienThi"
+                                    AllowClear="false" Class="hv-rz-dropdown"
+                                    Style="width:100%;" PopupStyle="max-height:min(200px,45dvh);overflow-y:auto;border-radius:10px;" />
+                </div>
+
+                <div class="hv-edit-field hv-edit-span-4">
+                    <label for="hv-add-email">Email</label>
+                    <input id="hv-add-email" class="hv-edit-native" type="email" maxlength="150"
+                           @bind="duLieuNhap.Email" placeholder="hocvien@example.com" />
+                </div>
+                <div class="hv-edit-field hv-edit-span-4">
+                    <label for="hv-add-phone">Số điện thoại</label>
+                    <input id="hv-add-phone" class="hv-edit-native" type="tel" maxlength="20"
+                           @bind="duLieuNhap.SoDienThoai" placeholder="Nhập số điện thoại" />
+                </div>
+                @* Chỉ hiển thị phần chấm điểm khi SỬA, không hiện ở THÊM học viên. *@
+                @if (!LaThemMoi)
+                {
+                    <div class="hv-edit-field hv-edit-span-6">
+                        <label>Tổng điểm rèn luyện / 10</label>
+                        <div class="hv-edit-rank hv-score-readonly" aria-readonly="true" aria-live="polite">
+                            @(TongDiemXemTruoc.HasValue
+                                ? $"{TongDiemXemTruoc.Value.ToString("0.##", CultureInfo.GetCultureInfo("vi-VN"))} / 10"
+                                : "Chưa đủ 5 tiêu chí để tính tổng")
+                        </div>
+                        <p class="hv-edit-help">Tự động cộng từ 5 tiêu chí, không thể sửa trực tiếp.</p>
+                    </div>
+                    <div class="hv-edit-field hv-edit-span-6">
+                        <label>Xếp loại</label>
+                        <div class="hv-edit-rank" aria-live="polite">@QuyTacDiemRenLuyen.XepLoai(TongDiemXemTruoc)</div>
+                    </div>
+
+                    <div class="hv-edit-field hv-edit-span-12">
+                        <label>Điểm rèn luyện theo 5 tiêu chí (có thể để trống để chấm sau)</label>
+                        <div class="hv-score-five">
+                            <div><label for="hv-score1">1. Phẩm chất đạo đức <small>(tối đa 2đ)</small></label>
+                                <input id="hv-score1" class="hv-edit-native" type="number" step="any" inputmode="decimal"
+                                       @bind="duLieuNhap.DiemTieuChi1" @bind:event="oninput" placeholder="Chưa chấm" /></div>
+                            <div><label for="hv-score2">2. Ý thức chấp hành <small>(tối đa 3đ)</small></label>
+                                <input id="hv-score2" class="hv-edit-native" type="number" step="any" inputmode="decimal"
+                                       @bind="duLieuNhap.DiemTieuChi2" @bind:event="oninput" placeholder="Chưa chấm" /></div>
+                            <div><label for="hv-score3">3. Học tập, nghiên cứu <small>(tối đa 2đ)</small></label>
+                                <input id="hv-score3" class="hv-edit-native" type="number" step="any" inputmode="decimal"
+                                       @bind="duLieuNhap.DiemTieuChi3" @bind:event="oninput" placeholder="Chưa chấm" /></div>
+                            <div><label for="hv-score4">4. Hoạt động chung <small>(tối đa 2đ)</small></label>
+                                <input id="hv-score4" class="hv-edit-native" type="number" step="any" inputmode="decimal"
+                                       @bind="duLieuNhap.DiemTieuChi4" @bind:event="oninput" placeholder="Chưa chấm" /></div>
+                            <div><label for="hv-score5">5. Thực hiện nhiệm vụ <small>(tối đa 1đ)</small></label>
+                                <input id="hv-score5" class="hv-edit-native" type="number" step="any" inputmode="decimal"
+                                       @bind="duLieuNhap.DiemTieuChi5" @bind:event="oninput" placeholder="Chưa chấm" /></div>
+                        </div>
+                        <p class="hv-edit-help">Vượt giới hạn sẽ báo lỗi ngay trong popup khi nhấn Lưu. Khi chưa đủ 5 mục, điểm tổng chưa được tính.</p>
+                    </div>
+                    <div class="hv-edit-field hv-edit-span-12">
+                        <label for="hv-add-review">Đánh giá</label>
+                        <textarea id="hv-add-review" class="hv-edit-native" rows="2" maxlength="1000"
+                                  @bind="duLieuNhap.DanhGia" placeholder="Nhận xét / đánh giá của đơn vị"></textarea>
+                    </div>
+                }
+            </div>
+            @if (!string.IsNullOrWhiteSpace(thongBaoLoi))
+            {
+                <div class="hv-edit-error" role="alert">@thongBaoLoi</div>
+            }
+            <div class="hv-edit-native-actions">
+                <button type="button" class="hv-edit-cancel-btn" @onclick="Huy">Hủy</button>
+                <button type="submit" class="hv-edit-save-btn">@(LaThemMoi ? "Lưu học viên" : "Lưu thay đổi")</button>
+            </div>
+        </form>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public HocVien HocVien { get; set; } = new();
+    [Parameter] public bool LaThemMoi { get; set; }
+    [Parameter] public EventCallback<HocVien> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    // Giữ dữ liệu trong Model: "" / "Nam" / "Nữ".
+    // Mục "Chưa khai báo" chỉ dùng làm nhãn hiển thị ở RadzenDropDown.
+    private static readonly string[] DanhSachGioiTinh = ["Chưa khai báo", "Nam", "Nữ"];
+
+    private string GioiTinhHienThi
+    {
+        get => string.IsNullOrWhiteSpace(duLieuNhap.GioiTinh)
+            ? "Chưa khai báo"
+            : duLieuNhap.GioiTinh;
+        set => duLieuNhap.GioiTinh = value == "Chưa khai báo" ? "" : value ?? "";
+    }
+
+    private double? TongDiemXemTruoc => LaThemMoi ? null : QuyTacDiemRenLuyen.TongKhiDu(duLieuNhap);
+
+    private HocVien duLieuNhap = new();
+    private HocVien? hocVienNhanTruoc;
+    private bool dangMo = true, dangLuu, dangDong, canFocus;
+    private string thongBaoLoi = "";
+    private ElementReference oHoTen;
+
+    protected override void OnParametersSet()
+    {
+        if (ReferenceEquals(hocVienNhanTruoc, HocVien)) return;
+        hocVienNhanTruoc = HocVien;
+        // Sao chép, không sửa trực tiếp instance từ Dshocvien.
+        duLieuNhap = new HocVien
+        {
+            Id = HocVien.Id, HoTen = HocVien.HoTen, NgaySinh = HocVien.NgaySinh,
+            Lop = HocVien.Lop, DiaChiHienTai = HocVien.DiaChiHienTai,
+            QueQuan = HocVien.QueQuan, SoBaoDanh = HocVien.SoBaoDanh, GioiTinh = HocVien.GioiTinh,
+            Email = HocVien.Email, SoDienThoai = HocVien.SoDienThoai, DanhGia = HocVien.DanhGia,
+            DiemTieuChi1 = HocVien.DiemTieuChi1, DiemTieuChi2 = HocVien.DiemTieuChi2,
+            DiemTieuChi3 = HocVien.DiemTieuChi3, DiemTieuChi4 = HocVien.DiemTieuChi4,
+            DiemTieuChi5 = HocVien.DiemTieuChi5, DiemRenLuyen = HocVien.DiemRenLuyen
+        };
+        thongBaoLoi = "";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.Delay(240); // Hiệu ứng mở; không dùng delay để tải dữ liệu.
+            dangMo = false;
+            canFocus = true;
+            await InvokeAsync(StateHasChanged);
+        }
+        else if (canFocus && !dangMo)
+        {
+            canFocus = false;
+            await oHoTen.FocusAsync();
+        }
+    }
+
+    private async Task LuuHocVien()
+    {
+        if (dangLuu || dangDong) return;
+        if (string.IsNullOrWhiteSpace(duLieuNhap.HoTen))
+        { thongBaoLoi = "Vui lòng nhập họ và tên học viên."; return; }
+        if (duLieuNhap.NgaySinh == default || duLieuNhap.NgaySinh.Date > DateTime.Today)
+        { thongBaoLoi = "Ngày sinh không hợp lệ."; return; }
+        if (string.IsNullOrWhiteSpace(duLieuNhap.Lop))
+        { thongBaoLoi = "Vui lòng nhập lớp học viên."; return; }
+        // Validation nghiệp vụ để thông báo trong popup (không phụ thuộc vào HTML max).
+        var kiemTra = LaThemMoi
+            ? (HopLe: true, ThongBao: "", TongDiem: (double?)null)
+            : QuyTacDiemRenLuyen.KiemTra(duLieuNhap);
+        if (!kiemTra.HopLe)
+        { thongBaoLoi = kiemTra.ThongBao; return; }
+        thongBaoLoi = "";
+        if (!OnSave.HasDelegate)
+        { thongBaoLoi = "Chưa kết nối chức năng lưu từ trang danh sách học viên."; return; }
+
+        dangLuu = true;
+        try
+        {
+            await OnSave.InvokeAsync(new HocVien
+            {
+                Id = duLieuNhap.Id, HoTen = duLieuNhap.HoTen.Trim(),
+                NgaySinh = duLieuNhap.NgaySinh,
+                Lop = duLieuNhap.Lop.Trim(),
+                DiaChiHienTai = duLieuNhap.DiaChiHienTai?.Trim() ?? "",
+                QueQuan = duLieuNhap.QueQuan?.Trim() ?? "",
+                SoBaoDanh = duLieuNhap.SoBaoDanh?.Trim() ?? "",
+                GioiTinh = duLieuNhap.GioiTinh ?? "",
+                Email = duLieuNhap.Email?.Trim() ?? "",
+                SoDienThoai = duLieuNhap.SoDienThoai?.Trim() ?? "",
+                DanhGia = LaThemMoi ? "" : (duLieuNhap.DanhGia?.Trim() ?? ""),
+                DiemTieuChi1 = LaThemMoi ? null : duLieuNhap.DiemTieuChi1,
+                DiemTieuChi2 = LaThemMoi ? null : duLieuNhap.DiemTieuChi2,
+                DiemTieuChi3 = LaThemMoi ? null : duLieuNhap.DiemTieuChi3,
+                DiemTieuChi4 = LaThemMoi ? null : duLieuNhap.DiemTieuChi4,
+                DiemTieuChi5 = LaThemMoi ? null : duLieuNhap.DiemTieuChi5,
+                // Chưa đủ 5 tiêu chí thì không thay đổi điểm tổng lịch sử khi Sửa.
+                DiemRenLuyen = LaThemMoi ? 0.0 : (kiemTra.TongDiem ?? duLieuNhap.DiemRenLuyen)
+            });
+        }
+        catch (Exception ex)
+        {
+            thongBaoLoi = "Không thể lưu học viên: " + ex.Message;
+        }
+        finally { dangLuu = false; }
+    }
+
+    private async Task Huy()
+    {
+        if (dangLuu || dangDong) return;
+        dangDong = true;
+        try
+        {
+            await Task.Delay(150);
+            if (OnCancel.HasDelegate) await OnCancel.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            thongBaoLoi = ex.Message;
+            dangDong = false;
+        }
+    }
+}
