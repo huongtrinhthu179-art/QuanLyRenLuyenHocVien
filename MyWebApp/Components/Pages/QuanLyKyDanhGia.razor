@@ -5,7 +5,8 @@
 @using Microsoft.EntityFrameworkCore
 @using MyWebApp.Models
 @inject MyWebApp.Data.AppDbContext DbContext
-
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
 <PageTitle>Quản lý kỳ đánh giá</PageTitle>
 
 <div class="page-content">
@@ -140,6 +141,12 @@
                                         <td>
                                             <div class="action-buttons">
                                                 <button type="button" class="icon-button edit-button" title="Chỉnh sửa" @onclick="() => SuaKyDanhGia(ky)">✎</button>
+                                        <button type="button"
+                                                class="icon-button delete-button"
+                                                title="Xóa kỳ đánh giá"
+                                                @onclick="() => MoXacNhanXoaKyDanhGia(ky)">
+                                            🗑
+                                        </button>
                                                 @if (ky.DaKhoa)
                                                 {
                                                     <button type="button" class="state-button" @onclick="() => DoiTrangThai(ky)">Mở lại</button>
@@ -157,7 +164,36 @@
                     </div>
                 }
             </section>
+    @if (hienXacNhanXoa)
+    {
+        <div class="delete-modal-overlay">
+            <div class="delete-modal">
+                <div class="delete-modal-icon">!</div>
+                <h3>Xác nhận xóa kỳ đánh giá</h3>
 
+                <p>
+                    Bạn có chắc chắn muốn xóa kỳ
+                    <strong>@tenKyChoXoa</strong> không?
+                </p>
+
+                <span class="delete-modal-note">
+                    Thao tác này không thể hoàn tác.
+                </span>
+
+                <div class="delete-modal-actions">
+                    <button type="button" class="modal-cancel"
+                            @onclick="HuyXoa">
+                        Hủy
+                    </button>
+
+                    <button type="button" class="modal-confirm"
+                            @onclick="XacNhanXoa">
+                        Xóa kỳ đánh giá
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
             <footer class="page-footer">
                 <span>QUẢN LÝ RÈN LUYỆN HỌC VIÊN</span>
                 <span>Hệ thống quản lý nội bộ · Phiên bản 1.0</span>
@@ -738,6 +774,15 @@
         border-color: #dce9fb;
     }
 
+    .delete-button {
+        background: #fff0ef;
+        color: #c7463d;
+        border-color: #f3d2cf;
+    }
+
+        .delete-button:hover {
+            background: #ffe1df;
+        }
     .state-button {
         border: 1px solid #dce8df;
         background: #f5faf6;
@@ -1106,6 +1151,113 @@
             grid-column: auto;
         }
     }
+
+    .delete-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(5, 35, 25, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 20px;
+    }
+
+    .delete-modal {
+        width: 100%;
+        max-width: 420px;
+        background: white;
+        border-radius: 15px;
+        padding: 28px;
+        text-align: center;
+        box-shadow: 0 15px 45px rgba(0,0,0,.2);
+    }
+
+    .delete-modal-icon {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 15px;
+        border-radius: 50%;
+        background: #fff0ef;
+        color: #c7463d;
+        font-size: 26px;
+        font-weight: 700;
+        display: grid;
+        place-items: center;
+    }
+
+    .delete-modal h3 {
+        color: #123f32;
+        font-size: 17px;
+        margin: 0 0 12px;
+    }
+
+    .delete-modal p {
+        color: #536258;
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+        .delete-modal p strong {
+            color: #c7463d;
+        }
+
+    .delete-modal-note {
+        display: block;
+        color: #9a7773;
+        font-size: 11px;
+        margin-bottom: 23px;
+    }
+
+    .delete-modal-actions {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+    }
+
+        .delete-modal-actions button {
+            padding: 10px 17px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 650;
+            cursor: pointer;
+        }
+
+    .modal-cancel {
+        background: #f2f5f3;
+        color: #536258;
+        border: 1px solid #dfe7e0;
+    }
+
+    .modal-confirm {
+        background: #c7463d;
+        color: white;
+        border: 1px solid #c7463d;
+    }
+    /* Đồng bộ màu hộp thoại xác nhận xóa với giao diện xanh */
+    .delete-modal .delete-modal-icon {
+        background: #e8f5ee !important;
+        color: #16834a !important;
+    }
+
+    .delete-modal p strong {
+        color: #16834a !important;
+    }
+
+    .delete-modal .delete-modal-note {
+        color: #668575 !important;
+    }
+
+    .delete-modal-actions .modal-confirm {
+        background: #087443 !important;
+        border-color: #087443 !important;
+        color: white !important;
+    }
+
+        .delete-modal-actions .modal-confirm:hover {
+            background: #065c35 !important;
+            border-color: #065c35 !important;
+        }
 </style>
 
 @code {
@@ -1247,7 +1399,71 @@
                 : "Đã mở lại kỳ đánh giá.",
             "alert-success");
     }
+   
+    private int idKyChoXoa = 0;
+    private string tenKyChoXoa = "";
+    private bool hienXacNhanXoa = false;
 
+    private async Task MoXacNhanXoaKyDanhGia(KyDanhGia ky)
+    {
+        bool daCoKetQua = await DbContext.KetQuaTieuChis
+            .AnyAsync(x => x.KyDanhGiaId == ky.Id);
+
+        if (daCoKetQua)
+        {
+            HienThongBao("Không thể xóa kỳ đánh giá vì đã có kết quả rèn luyện.", "alert-danger");
+            return;
+        }
+
+        idKyChoXoa = ky.Id;
+        tenKyChoXoa = ky.TenKy;
+        hienXacNhanXoa = true;
+    }
+
+    private void HuyXoa()
+    {
+        hienXacNhanXoa = false;
+        idKyChoXoa = 0;
+        tenKyChoXoa = "";
+    }
+
+    private async Task XacNhanXoa()
+    {
+        var kyCanXoa = await DbContext.KyDanhGias
+            .FirstOrDefaultAsync(x => x.Id == idKyChoXoa);
+
+        if (kyCanXoa == null)
+        {
+            HuyXoa();
+            HienThongBao("Không tìm thấy kỳ đánh giá cần xóa.", "alert-danger");
+            return;
+        }
+
+        bool daCoKetQua = await DbContext.KetQuaTieuChis
+            .AnyAsync(x => x.KyDanhGiaId == idKyChoXoa);
+
+        if (daCoKetQua)
+        {
+            HuyXoa();
+            HienThongBao("Không thể xóa kỳ đánh giá vì đã có kết quả rèn luyện.", "alert-danger");
+            return;
+        }
+
+        DbContext.KyDanhGias.Remove(kyCanXoa);
+        await DbContext.SaveChangesAsync();
+
+        if (dangSua && idDangSua == idKyChoXoa)
+        {
+            model = TaoModelMoi();
+            dangSua = false;
+            idDangSua = 0;
+        }
+
+        HuyXoa();
+        await TaiDanhSach();
+
+        HienThongBao("Đã xóa kỳ đánh giá thành công!", "alert-success");
+    }
     private void HuySua()
     {
         model = TaoModelMoi();

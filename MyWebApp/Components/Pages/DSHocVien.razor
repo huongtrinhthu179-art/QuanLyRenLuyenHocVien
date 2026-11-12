@@ -1,5 +1,4 @@
 @page "/dshocvien"
-@page "/"
 @attribute [Authorize]
 @rendermode InteractiveServer
 @attribute [StreamRendering]
@@ -46,12 +45,12 @@
                         <div class="stat-number">@hocViens.Select(x => x.Lop).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).Count()</div>
                         <div class="stat-foot">Lớp học có học viên</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-icon gold-icon">★</div>
-                        <div class="stat-label">Xếp loại Xuất sắc</div>
-                        <div class="stat-number">@hocViens.Count(x => x.XepLoai == "Xuất sắc")</div>
-                        <div class="stat-foot">Xếp loại Xuất sắc</div>
-                    </div>
+            <div class="stat-card">
+                <div class="stat-icon gold-icon">★</div>
+                <div class="stat-label">Tỷ lệ từ 5 điểm trở lên</div>
+                <div class="stat-number">@TyLeTu5Diem.ToString("0.#")%</div>
+                <div class="stat-foot">Trên tổng số học viên</div>
+            </div>
                     <div class="stat-card">
                         <div class="stat-icon purple-icon">◎</div>
                         <div class="stat-label">Điểm trung bình</div>
@@ -125,6 +124,10 @@
                         <div class="stat-label">Xếp loại Xuất sắc</div>
                         <div class="stat-number green-text">@hocViens.Count(x => x.XepLoai == "Xuất sắc")</div>
                     </div>
+            <div class="stat-card">
+                <div class="stat-label">Xếp loại Giỏi</div>
+                <div class="stat-number green-text">@hocViens.Count(x => x.XepLoai == "Giỏi")</div>
+            </div>
                     <div class="stat-card">
                         <div class="stat-label">Xếp loại Khá</div>
                         <div class="stat-number">@hocViens.Count(x => x.XepLoai == "Khá")</div>
@@ -137,7 +140,8 @@
 
                 @if (showForm)
                 {
-                    <section class="panel form-panel">
+            <div class="student-modal-overlay">
+                <section class="panel form-panel student-modal">
                         <div class="panel-heading">
                             <div>
                                 <h2>@(editingId.HasValue ? "Cập nhật hồ sơ học viên" : "Thêm học viên mới")</h2>
@@ -183,8 +187,9 @@
                             <button class="btn-secondary" @onclick="CancelForm">Hủy</button>
                             <button class="btn-primary" @onclick="SaveStudent">✓ @(editingId.HasValue ? "Lưu thay đổi" : "Lưu học viên")</button>
                         </div>
-                    </section>
-                }
+                </section>
+            </div>
+        }
 
                 <section class="panel">
                     <div class="panel-heading">
@@ -201,21 +206,16 @@
                                    @bind:event="oninput"
                                    placeholder="Tìm tên, lớp, ngày sinh, tháng, năm, điểm..." />
                         </div>
-                        <select @bind="filterClass">
-                            <option value="">Tất cả các lớp</option>
-                            @foreach (var lop in hocViens.Select(x => x.Lop).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x))
-                            {
-                                <option value="@lop">@lop</option>
-                            }
-                        </select>
-                        <select @bind="filterRating">
-                            <option value="">Tất cả xếp loại</option>
-                            <option value="Xuất sắc">Xuất sắc</option>
-                            <option value="Giỏi">Giỏi</option>
-                            <option value="Khá">Khá</option>
-                            <option value="Trung bình">Trung bình</option>
-                            <option value="Không xếp loại">Không xếp loại</option>
-                        </select>
+                <RadzenDropDown @bind-Value="filterClass"
+                                Data="@DanhSachLop"
+                                Placeholder="Tất cả các lớp"
+                                AllowClear="true"
+                                Style="width: 190px;" />
+                <RadzenDropDown @bind-Value="filterRating"
+                                Data="@DanhSachXepLoai"
+                                Placeholder="Tất cả xếp loại"
+                                AllowClear="true"
+                                Style="width: 190px;" />
                         <button class="btn-outline" @onclick="ClearFilters">Đặt lại</button>
                     </div>
 
@@ -782,10 +782,12 @@
 
     .compact-stats {
         margin-bottom: 22px;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
     }
 
         .compact-stats .stat-card {
-            padding: 17px 19px;
+            padding: 17px 12px;
+            text-align: center;
         }
 
         .compact-stats .stat-number {
@@ -1480,6 +1482,92 @@
             display: none;
         }
     }
+    /* Ô lọc Radzen (ô đóng): chữ nằm giữa */
+    .filter-bar .rz-dropdown {
+        height: 40px !important;
+        border: 1px solid #dfe7e0 !important;
+        border-radius: 9px !important;
+        box-shadow: none !important;
+        background: white !important;
+    }
+
+        .filter-bar .rz-dropdown .rz-dropdown-label,
+        .filter-bar .rz-dropdown .rz-placeholder {
+            transform: translateY(0px) !important;
+            font-family: "Segoe UI", Arial, sans-serif !important;
+            font-size: 12px !important;
+            color: #33483a !important;
+            text-align: center !important;
+            justify-content: center !important;
+        }
+
+        .filter-bar .rz-dropdown .rz-dropdown-trigger {
+            height: 38px !important;
+            line-height: 38px !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+        }
+
+        .filter-bar .rz-dropdown:focus-within {
+            border-color: #55a979 !important;
+            box-shadow: 0 0 0 3px #16834b12 !important;
+        }
+
+    /* Danh sách xổ xuống */
+    .rz-dropdown-panel {
+        border: 1px solid #dfe7e0 !important;
+        border-radius: 9px !important;
+        box-shadow: 0 6px 18px #0d412a22 !important;
+    }
+
+        .rz-dropdown-panel .rz-dropdown-item {
+            height: 36px !important;
+            min-height: 0 !important;
+            line-height: normal !important;
+            padding: 0 12px !important;
+            display: flex !important;
+            align-items: center !important;
+            font-family: "Segoe UI", Arial, sans-serif !important;
+            font-size: 12px !important;
+            color: #33483a !important;
+        }
+
+            .rz-dropdown-panel .rz-dropdown-item span {
+                font-family: "Segoe UI", Arial, sans-serif !important;
+                font-size: 12px !important;
+                line-height: normal !important;
+            }
+
+            .rz-dropdown-panel .rz-dropdown-item:hover {
+                background: #f0f7f2 !important;
+            }
+
+        .rz-dropdown-panel .rz-state-highlight {
+            background: #e9f6ee !important;
+            color: #10673b !important;
+        }
+    /* Cửa sổ chỉnh sửa học viên */
+    .student-modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: rgba(0, 0, 0, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    .student-modal {
+        width: 100%;
+        max-width: 850px;
+        max-height: 90vh;
+        overflow-y: auto;
+        margin: 0 !important;
+        border-radius: 14px;
+        background: white;
+        box-shadow: 0 15px 45px rgba(0, 0, 0, 0.2);
+    }
 </style>
 
 @code {
@@ -1493,13 +1581,11 @@
     private List<HocVien> hocViens = new();
     private HocVien hocVien = new();
     private int? editingId;
-    private int nextId = 1;
-
-    private bool showDashboard = true;
+    private bool showDashboard = false;
     private bool showForm;
     private string searchText = "";
-    private string filterClass = "";
-    private string filterRating = "";
+    private string? filterClass ;
+    private string?filterRating;
     private string message = "";
 
     private string CurrentSection => showDashboard ? "Tổng quan" : "Quản lý học viên";
@@ -1507,7 +1593,17 @@
     private double AverageScore => hocViens.Count == 0
     ? 0
     : hocViens.Average(x => x.DiemRenLuyen);
+    private double TyLeTu5Diem => hocViens.Count == 0
+    ? 0
+    : hocViens.Count(x => x.DiemRenLuyen >= 5) * 100.0 / hocViens.Count;
+    private List<string> DanhSachLop => hocViens
+    .Select(x => x.Lop)
+    .Where(x => !string.IsNullOrWhiteSpace(x))
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .OrderBy(x => x)
+    .ToList();
 
+    private readonly string[] DanhSachXepLoai = { "Xuất sắc", "Giỏi", "Khá", "Trung bình", "Không xếp loại" };
     private List<HocVien> FilteredStudents => hocViens
     .Where(x =>
     {
@@ -1548,8 +1644,29 @@
 
         return matchClass && matchRating;
     })
-    .OrderBy(x => x.HoTen)
-    .ToList();
+    .OrderBy(x => LaySoKhoa(x.Lop))
+.ThenBy(x => LaySoLop(x.Lop))
+.ThenBy(x => x.HoTen)
+.ToList();
+    private int LaySoKhoa(string? lop)
+    {
+        if (string.IsNullOrWhiteSpace(lop)) return int.MaxValue;
+
+        var match = System.Text.RegularExpressions.Regex.Match(
+            lop, @"D(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        return match.Success ? int.Parse(match.Groups[1].Value) : int.MaxValue;
+    }
+
+    private int LaySoLop(string? lop)
+    {
+        if (string.IsNullOrWhiteSpace(lop)) return int.MaxValue;
+
+        var match = System.Text.RegularExpressions.Regex.Match(
+            lop, @"B(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        return match.Success ? int.Parse(match.Groups[1].Value) : int.MaxValue;
+    }
 
     private string NavClass(bool students) =>
         "nav-item " + ((!showDashboard && students) || (showDashboard && !students) ? "active" : "");
@@ -1691,10 +1808,9 @@
     private void ClearFilters()
     {
         searchText = "";
-        filterClass = "";
-        filterRating = "";
+        filterClass = null;
+        filterRating = null;
     }
-
     private string BadgeClass(string rating) => rating switch
     {
         "Xuất sắc" => "status-badge badge-tot",

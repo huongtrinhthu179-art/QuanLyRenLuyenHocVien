@@ -4,6 +4,7 @@
 @using Microsoft.EntityFrameworkCore
 @using MyWebApp.Models
 @inject MyWebApp.Data.AppDbContext DbContext
+@using Radzen
 
 <PageTitle>Nhập kết quả rèn luyện</PageTitle>
 
@@ -19,44 +20,53 @@
 
             <section class="panel">
                 <div class="panel-heading"><div><h2>Thông tin đánh giá</h2><p>Chỉ các kỳ đang mở và tiêu chí đang sử dụng được dùng để nhập điểm.</p></div></div>
-                <div class="form-grid">
-                    <div class="form-field">
-                        <label>Kỳ đánh giá</label>
-                        <select class="form-control-custom" @bind="kyId" @bind:after="TaiDuLieuNhap">
-                            <option value="0">-- Chọn kỳ đánh giá --</option>
-                            @foreach (var ky in cacKy.Where(x => !x.DaKhoa))
-                            {
-                                <option value="@ky.Id">@ky.TenKy</option>
-                            }
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Lớp học viên</label>
-                        <select class="form-control-custom" @bind="lopChon" @bind:after="TaiDanhSachHocVien">
-                            <option value="">-- Chọn lớp --</option>
-                            @foreach (var lop in cacLop)
-                            {
-                                <option value="@lop">@lop</option>
-                            }
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Học viên</label>
-                        <select class="form-control-custom" @bind="hocVienId" @bind:after="TaiDuLieuNhap">
-                            <option value="0">-- Chọn học viên --</option>
-                            @foreach (var hv in hocViens)
-                            {
-                                <option value="@hv.Id">@hv.HoTen</option>
-                            }
-                        </select>
-                    </div>
-                </div>
-            </section>
+        <div class="form-grid">
+            <div class="form-field">
+                <label>Kỳ đánh giá</label>
+                <RadzenDropDown TValue="int"
+                                @bind-Value="kyId"
+                                Data="@cacKy"
+                                TextProperty="TenKy"
+                                ValueProperty="Id"
+                                Placeholder="-- Chọn kỳ đánh giá --"
+                                Change="@(async _ => await TaiDuLieuNhap())"
+                                Class="input-dropdown"
+                                PopupCssClass="nk-dropdown-popup" />
+            </div>
 
+            <div class="form-field">
+                <label>Lớp học viên</label>
+                <RadzenDropDown TValue="string"
+                                @bind-Value="lopChon"
+                                Data="@cacLop"
+                                Placeholder="-- Chọn lớp học viên --"
+                                AllowFiltering="true"
+                                Change="@(async _ => await TaiDanhSachHocVien())"
+                                Class="input-dropdown"
+                                PopupCssClass="nk-dropdown-popup" />
+            </div>
+
+            <div class="form-field">
+                <label>Học viên</label>
+                <RadzenDropDown TValue="int"
+                                @bind-Value="hocVienId"
+                                Data="@hocViens"
+                                TextProperty="HoTen"
+                                ValueProperty="Id"
+                                Placeholder="-- Chọn học viên --"
+                                AllowFiltering="true"
+                                FilterPlaceholder="Tìm học viên..."
+                                Disabled="@(hocViens.Count == 0)"
+                                Change="@(async _ => await TaiDuLieuNhap())"
+                                Class="input-dropdown"
+                                PopupCssClass="nk-dropdown-popup" />
+            </div>
+        </div>
+    </section> 
             @if (kyId > 0 && hocVienId > 0)
             {
                 <section class="panel">
-                    <div class="panel-heading"><div><h2>Bảng chấm điểm tiêu chí</h2><p>Nhập điểm đạt, không vượt quá điểm tối đa của từng tiêu chí.</p></div><span class="live-tag">THANG ĐIỂM TIÊU CHÍ</span></div>
+                    <div class="panel-heading"><div><h2>Bảng chấm điểm tiêu chí</h2><p>Nhập điểm đạt, không vượt quá điểm tối đa của từng tiêu chí.</p></div><span class="live-tag">THANG ĐIỂM TIÊU 10</span></div>
                     @if (tieuChis.Count == 0)
                     {
                         <div class="empty-state"><b>Chưa có tiêu chí đang sử dụng</b><p>Hãy kiểm tra trang Quản lý tiêu chí đánh giá.</p></div>
@@ -74,7 +84,6 @@
                                 </tbody>
                             </table>
                         </div>
-                        <div class="score-summary"><span>Tổng điểm đạt</span><strong>@TongDiem.ToString("0.##") / @TongDiemToiDa.ToString("0.##")</strong><span>Điểm quy đổi: <b>@DiemQuyDoi.ToString("0.0") / 10</b></span><span>Xếp loại: <b>@XepLoai(DiemQuyDoi)</b></span></div>
                         <div class="form-actions"><button type="button" class="btn-primary" @onclick="LuuKetQua">✓ Lưu kết quả</button></div>
                     }
                 </section>
@@ -355,17 +364,7 @@
             font-size: 12px;
             font-weight: 650;
             color: #425449
-        }
-
-    .form-control-custom {
-        width: 100%;
-        background: white;
-        border: 1px solid #dfe7e0;
-        border-radius: 9px;
-        padding: 11px 12px;
-        color: #33483a;
-        font: 12px "Segoe UI",sans-serif
-    }
+        }    
 
     .table-wrap {
         width: 100%;
@@ -577,7 +576,85 @@
             flex-direction: column
         }
     }
-</style>
+
+
+    /* ===== DROPDOWN: CĂN GIỮA CHUẨN ===== */
+
+    .input-dropdown.rz-dropdown {
+        width: 100% !important;
+        height: 40px !important;
+        min-height: 40px !important;
+        display: flex !important;
+        align-items: center !important;
+        border: 1px solid #dfe7e0 !important;
+        border-radius: 9px !important;
+        background: #fff !important;
+        box-shadow: none !important;
+        box-sizing: border-box !important;
+    }
+
+    .input-dropdown .rz-dropdown-label-container {
+        height: 100% !important;
+        min-width: 0 !important;
+        flex: 1 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 12px !important;
+        overflow: hidden !important;
+    }
+
+    .input-dropdown .rz-dropdown-label,
+    .input-dropdown .rz-placeholder {
+        position: static !important;
+        display: block !important;
+        height: auto !important;
+        min-height: 0 !important;
+        line-height: normal !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        transform: none !important;
+        font-family: "Segoe UI", Arial, sans-serif !important;
+        font-size: 12px !important;
+        font-weight: 400 !important;
+        color: #33483a !important;
+        text-align: center !important;
+    }
+
+    .input-dropdown .rz-dropdown-trigger {
+        height: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 12px !important;
+    }
+
+    .input-dropdown.rz-dropdown:focus-within {
+        border-color: #55a979 !important;
+        box-shadow: 0 0 0 3px #16834b12 !important;
+    }
+
+    .rz-dropdown-panel {
+        border: 1px solid #dfe7e0 !important;
+        border-radius: 9px !important;
+        box-shadow: 0 6px 18px #0d412a22 !important;
+    }
+
+        .rz-dropdown-panel .rz-dropdown-item {
+            min-height: 36px !important;
+            padding: 0 12px !important;
+            display: flex !important;
+            align-items: center !important;
+            font-family: "Segoe UI", Arial, sans-serif !important;
+            font-size: 12px !important;
+            color: #33483a !important;
+        }
+
+            .rz-dropdown-panel .rz-dropdown-item:hover {
+                background: #f0f7f2 !important;
+            }
+           
+ </style>
 
 @code {
     private List<KyDanhGia> cacKy = new();
@@ -585,6 +662,7 @@
     private List<HocVien> hocViens = new();
     private List<TieuChiDanhGia> tieuChis = new();
     private Dictionary<int, double> diemNhap = new();
+    
     private int kyId;
     private int hocVienId;
     private string lopChon = "";
@@ -592,8 +670,6 @@
     private string loaiThongBao = "alert-success";
     private double TongDiem => diemNhap.Values.Sum();
     private double TongDiemToiDa => tieuChis.Sum(x => x.DiemToiDa);
-    private double DiemQuyDoi => TongDiemToiDa <= 0 ? 0 : TongDiem / TongDiemToiDa * 10.0;
-
     protected override async Task OnInitializedAsync()
     {
         try
@@ -601,7 +677,8 @@
             cacKy = await DbContext.KyDanhGias.AsNoTracking().OrderByDescending(x => x.Id).ToListAsync();
             cacLop = await DbContext.HocViens.AsNoTracking()
                 .Where(x => x.Lop != null).Select(x => x.Lop).Distinct().OrderBy(x => x).ToListAsync();
-            tieuChis = await DbContext.TieuChiDanhGias.AsNoTracking()
+            await TieuChiCoDinh.DamBaoAsync(DbContext);
+                tieuChis = await DbContext.TieuChiDanhGias.AsNoTracking()
                 .Where(x => x.DangSuDung).OrderBy(x => x.ThuTu).ToListAsync();
             diemNhap = tieuChis.ToDictionary(x => x.Id, x => 0.0);
         }
@@ -636,14 +713,21 @@
             var daLuu = await DbContext.Set<KetQuaTieuChi>().AsNoTracking()
                 .Where(x => x.KyDanhGiaId == kyId && x.HocVienId == hocVienId).ToListAsync();
             foreach (var item in daLuu)
-                if (diemNhap.ContainsKey(item.TieuChiDanhGiaId)) diemNhap[item.TieuChiDanhGiaId] = item.DiemDat;
+            {
+                var tc = tieuChis.FirstOrDefault(x => x.Id == item.TieuChiDanhGiaId);
+
+                if (tc != null && item.DiemToiDa > 0)
+                {
+                    diemNhap[tc.Id] = item.DiemDat / item.DiemToiDa * tc.DiemToiDa;
+                }
+            }
         }
         catch (Exception ex)
         {
             ThongBao("Lỗi tải điểm đã lưu: " + ex.GetBaseException().Message, "alert-danger");
         }
     }
-
+   
     private async Task LuuKetQua()
     {
         try
@@ -662,12 +746,12 @@
             foreach (var tc in tieuChis)
                 DbContext.Set<KetQuaTieuChi>().Add(new KetQuaTieuChi { HocVienId = hocVienId, KyDanhGiaId = kyId, TieuChiDanhGiaId = tc.Id, DiemDat = diemNhap.GetValueOrDefault(tc.Id), DiemToiDa = tc.DiemToiDa });
             await DbContext.SaveChangesAsync();
-            ThongBao($"Đã lưu kết quả. Tổng {TongDiem:0.##}/{TongDiemToiDa:0.##}, quy đổi {DiemQuyDoi:0.0}/10 – {XepLoai(DiemQuyDoi)}.", "alert-success");
+            ThongBao($"Đã lưu kết quả. Tổng {TongDiem:0.##}/{TongDiemToiDa:0.##}, quy đổi {TongDiem:0.0}/10 – {XepLoai(TongDiem)}.", "alert-success");
         }
         catch (Exception ex)
         {
             DbContext.ChangeTracker.Clear();
-            ThongBao("Lỗi khi lưu: " + ex.GetBaseException().Message, "alert-danger");
+            ThongBao($"Đã lưu kết quả. Tổng {TongDiem:0.##}/{TongDiemToiDa:0.##} – {XepLoai(TongDiem)}.", "alert-success");
         }
     }
 
