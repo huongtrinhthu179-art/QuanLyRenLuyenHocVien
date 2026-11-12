@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using MyWebApp.Components;
 using MyWebApp.Data;
 using MyWebApp.Models;
 using Radzen;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddRadzenComponents();
+builder.Services.AddRazorComponents()
+    .AddInteractiveServerComponents();
 
 var connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection")
@@ -38,7 +40,7 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
-
+builder.Services.AddRadzenComponents();
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
@@ -55,7 +57,7 @@ app.UseAntiforgery();
 
 app.MapRazorPages();
 
-app.MapRazorComponents<MyWebApp.Components.App>()
+app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 using (var scope = app.Services.CreateScope())
