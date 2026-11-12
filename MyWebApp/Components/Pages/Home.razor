@@ -1,0 +1,408 @@
+﻿@page "/"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using MyWebApp.Models
+@inject IDbContextFactory<MyWebApp.Data.AppDbContext> DbFactory
+
+<PageTitle>Trang chủ</PageTitle>
+
+<div class="home-page">
+    <section class="welcome-banner">
+        <div>
+            <span class="eyebrow">CHÀO MỪNG BẠN ĐẾN VỚI</span>
+            <h1>Hệ thống quản lý rèn luyện học viên</h1>
+            <p>Đồng hành cùng học viên trong quá trình rèn luyện, học tập<br /> và xây dựng phẩm chất, bản lĩnh người chiến sĩ Công an nhân dân.</p>
+            <a class="btn-primary" href="/dshocvien">Quản lý học viên <span>→</span></a>
+        </div>
+    </section>
+
+    <div class="section-heading">
+        <div>
+            <h2>Tổng quan hệ thống</h2>
+            <p>Các số liệu được cập nhật từ danh sách hiện tại.</p>
+        </div>
+        <span class="live-tag">● ĐANG HOẠT ĐỘNG</span>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon green-icon">♙</div>
+            <div class="stat-label">Tổng học viên</div>
+            <div class="stat-number">@hocViens.Count</div>
+            <div class="stat-foot">Học viên trong danh sách</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon blue-icon">▤</div>
+            <div class="stat-label">Số lớp</div>
+            <div class="stat-number">@hocViens.Select(x => x.Lop).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).Count()</div>
+            <div class="stat-foot">Lớp học có học viên</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon gold-icon">★</div>
+            <div class="stat-label">Tỷ lệ từ 5 điểm trở lên</div>
+            <div class="stat-number">@TyLeTu5Diem.ToString("0.#")%</div>
+            <div class="stat-foot">Trên tổng số học viên</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon purple-icon">◎</div>
+            <div class="stat-label">Điểm trung bình</div>
+            <div class="stat-number">@AverageScore.ToString("0.0")</div>
+            <div class="stat-foot">Thang điểm 10</div>
+        </div>
+    </div>
+
+    <section class="panel">
+        <div class="panel-heading">
+            <div>
+                <h2>Học viên mới cập nhật</h2>
+                <p>Danh sách học viên hiện có trong hệ thống.</p>
+            </div>
+            <a class="btn-outline" href="/dshocvien">Xem tất cả →</a>
+        </div>
+        @if (hocViens.Count == 0)
+        {
+            <div class="empty-state">
+                <div>▤</div>
+                <b>Chưa có dữ liệu học viên</b>
+                <p>Hãy thêm học viên để bắt đầu quản lý.</p>
+                <a class="btn-primary" href="/dshocvien">+ Thêm học viên</a>
+            </div>
+        }
+        else
+        {
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>HỌ VÀ TÊN</th><th>LỚP</th><th>ĐIỂM RÈN LUYỆN</th><th>XẾP LOẠI</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var hv in hocViens.TakeLast(5).Reverse())
+                        {
+                            <tr>
+                                <td><b>@hv.HoTen</b></td>
+                                <td>@hv.Lop</td>
+                                <td>@hv.DiemRenLuyen.ToString("0.0") / 10</td>
+                                <td><span class="@BadgeClass(hv.XepLoai)">@hv.XepLoai</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <footer class="page-footer">
+        <span>QUẢN LÝ RÈN LUYỆN HỌC VIÊN</span>
+        <span>Hệ thống quản lý nội bộ · Phiên bản 1.0</span>
+    </footer>
+</div>
+
+<style>
+    .home-page {
+        color: #123f32;
+    }
+
+        .home-page a {
+            text-decoration: none;
+        }
+
+        .home-page .eyebrow {
+            color: #ffe17b;
+            font-size: 12px;
+            letter-spacing: .5px;
+            font-weight: 700;
+        }
+
+        .home-page .welcome-banner {
+            min-height: 178px;
+            padding: 27px 28px;
+            border-radius: 12px;
+            color: white;
+            display: flex;
+            align-items: center;
+            background: linear-gradient(100deg, rgba(0,75,48,.98) 0%, rgba(0,111,68,.94) 57%, rgba(10,119,76,.72) 100%), radial-gradient(circle at 85% 50%, #69a982 0, #126c49 38%, #075036 70%);
+            border-bottom: 4px solid #d7b747;
+        }
+
+            .home-page .welcome-banner h1 {
+                color: white;
+                font-size: clamp(25px, 2.1vw, 32px);
+                margin: 10px 0;
+            }
+
+            .home-page .welcome-banner p {
+                color: #e5f4eb;
+                font-size: 15px;
+                line-height: 1.65;
+                max-width: 650px;
+            }
+
+        .home-page .btn-primary, .home-page .btn-outline {
+            display: inline-block;
+            border-radius: 8px;
+            padding: 11px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .home-page .btn-primary {
+            background: #08764a;
+            color: white;
+            border: 1px solid #08764a;
+        }
+
+        .home-page .welcome-banner .btn-primary {
+            background: white;
+            color: #10673b;
+            border-color: white;
+            margin-top: 9px;
+        }
+
+        .home-page .btn-outline {
+            background: white;
+            color: #16834b;
+            border: 1px solid #cfe3d5;
+        }
+
+        .home-page .section-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+            margin: 28px 0 17px;
+        }
+
+            .home-page .section-heading h2 {
+                font-size: 19px;
+                margin: 0 0 7px;
+            }
+
+            .home-page .section-heading p, .home-page .panel-heading p {
+                margin: 0;
+                color: #7d8b83;
+                font-size: 12px;
+                line-height: 1.6;
+            }
+
+        .home-page .live-tag {
+            font-size: 9px;
+            letter-spacing: .5px;
+            color: #16834b;
+            background: #e9f6ee;
+            padding: 8px 10px;
+            border-radius: 7px;
+            white-space: nowrap;
+        }
+
+        .home-page .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .home-page .stat-card {
+            background: white;
+            border: 1px solid #e0ebe4;
+            border-radius: 12px;
+            padding: 19px;
+            min-width: 0;
+            box-shadow: 0 3px 12px rgba(13,65,42,.06);
+        }
+
+        .home-page .stat-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .home-page .green-icon {
+            color: #16834b;
+            background: #e9f6ee;
+        }
+
+        .home-page .blue-icon {
+            color: #3977c6;
+            background: #edf4ff;
+        }
+
+        .home-page .gold-icon {
+            color: #c18b20;
+            background: #fff6df;
+        }
+
+        .home-page .purple-icon {
+            color: #8864c7;
+            background: #f3edff;
+        }
+
+        .home-page .stat-label {
+            color: #7d8a81;
+            font-size: 11px;
+        }
+
+        .home-page .stat-number {
+            font-size: 28px;
+            font-weight: 750;
+            margin: 8px 0;
+        }
+
+        .home-page .stat-foot {
+            color: #a0aaa3;
+            font-size: 10px;
+        }
+
+        .home-page .panel {
+            margin-top: 23px;
+            background: white;
+            border: 1px solid #e0ebe4;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 3px 12px rgba(13,65,42,.06);
+        }
+
+        .home-page .panel-heading {
+            padding: 21px 23px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
+            .home-page .panel-heading h2 {
+                font-size: 15px;
+                margin: 0 0 7px;
+            }
+
+        .home-page .empty-state {
+            padding: 42px 20px;
+            text-align: center;
+            color: #718078;
+        }
+
+            .home-page .empty-state > div {
+                font-size: 32px;
+                color: #a5cbb0;
+                margin-bottom: 12px;
+            }
+
+            .home-page .empty-state p {
+                font-size: 12px;
+                margin: 8px 0 17px;
+            }
+
+        .home-page .table-wrap {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        .home-page table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        .home-page thead {
+            background: #f8faf8;
+        }
+
+        .home-page th {
+            color: #89958c;
+            font-size: 9px;
+            letter-spacing: .55px;
+            font-weight: 700;
+            padding: 14px 16px;
+        }
+
+        .home-page td {
+            border-top: 1px solid #edf1ed;
+            padding: 14px 16px;
+            font-size: 12px;
+            color: #536258;
+        }
+
+            .home-page td b {
+                color: #2b3d31;
+            }
+
+        .home-page .status-badge {
+            padding: 5px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .home-page .badge-tot {
+            color: #16834b;
+            background: #e8f6ed;
+        }
+
+        .home-page .badge-kha {
+            color: #3875b9;
+            background: #eaf2ff;
+        }
+
+        .home-page .badge-trungbinh {
+            color: #a7791c;
+            background: #fff4d9;
+        }
+
+        .home-page .badge-yeu {
+            color: #bf4d4d;
+            background: #ffeded;
+        }
+
+        .home-page .page-footer {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            border-top: 1px solid #e6ece7;
+            margin-top: 35px;
+            padding-top: 19px;
+            color: #9aa69d;
+            font-size: 9px;
+            letter-spacing: .4px;
+        }
+
+    @@media (max-width: 1050px) {
+        .home-page .stats-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @@media (max-width: 700px) {
+        .home-page .stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+@code {
+    private List<HocVien> hocViens = new();
+
+    private double AverageScore => hocViens.Count == 0 ? 0 : hocViens.Average(x => x.DiemRenLuyen);
+    private double TyLeTu5Diem => hocViens.Count == 0
+    ? 0
+    : hocViens.Count(x => x.DiemRenLuyen >= 5) * 100.0 / hocViens.Count;
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        hocViens = await db.HocViens.AsNoTracking().OrderBy(x => x.Id).ToListAsync();
+    }
+
+    private static string BadgeClass(string rating) => rating switch
+    {
+        "Xuất sắc" => "status-badge badge-tot",
+        "Giỏi" => "status-badge badge-tot",
+        "Khá" => "status-badge badge-kha",
+        "Trung bình" => "status-badge badge-trungbinh",
+        _ => "status-badge badge-yeu"
+    };
+}

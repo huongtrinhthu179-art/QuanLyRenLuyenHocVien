@@ -3,8 +3,10 @@
 @rendermode InteractiveServer
 @using Microsoft.EntityFrameworkCore
 @using MyWebApp.Models
+@using Radzen
 @inject IDbContextFactory<MyWebApp.Data.AppDbContext> DbFactory
-
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@inject ProtectedSessionStorage Luu
 <PageTitle>Báo cáo kết quả rèn luyện</PageTitle>
 
 <div class="page-content">
@@ -17,39 +19,48 @@
                 <div style="background:#fff0ef;color:#a83e37;padding:12px 15px;border-radius:9px;margin-bottom:18px;font-size:12px">@thongBaoLoi</div>
             }
             <section class="panel filter-panel">
-                <div class="form-grid">
-                    <div class="form-field">
-                        <label>Kỳ đánh giá</label>
-                        <select class="form-control-custom" @bind="kyId" @bind:after="TaiBaoCao">
-                            <option value="0">-- Chọn kỳ đánh giá --</option>
-                            @foreach (var ky in cacKy)
-                            {
-                                <option value="@ky.Id">@ky.TenKy</option>
-                            }
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Lớp học viên</label>
-                        <select class="form-control-custom" @bind="lopChon" @bind:after="TaiBaoCao">
-                            <option value="">Tất cả các lớp</option>
-                            @foreach (var lop in cacLop)
-                            {
-                                <option value="@lop">@lop</option>
-                            }
-                        </select>
-                    </div>
-                    <div class="form-field">
-                        <label>Xếp loại</label>
-                        <select class="form-control-custom" @bind="xepLoaiChon" @bind:after="TaiBaoCao">
-                            <option value="">Tất cả xếp loại</option>
-                            <option>Xuất sắc</option>
-                            <option>Giỏi</option>
-                            <option>Khá</option>
-                            <option>Trung bình</option>
-                            <option>Không xếp loại</option>
-                        </select>
-                    </div>
-                </div>
+        <div class="form-grid">
+            <div class="form-field">
+                <label>Kỳ đánh giá</label>
+                <RadzenDropDown TValue="int"
+                                @bind-Value="kyId"
+                                Data="cacKy"
+                                TextProperty="TenKy"
+                                ValueProperty="Id"
+                                Placeholder="-- Chọn kỳ đánh giá --"
+                                Change="@(async _ => await TaiBaoCao())"
+                                Class="input-dropdown"
+                                Style="width:100%"
+                                PopupCssClass="nk-dropdown-popup" />
+            </div>
+
+            <div class="form-field">
+                <label>Lớp học viên</label>
+                <RadzenDropDown TValue="string"
+                                @bind-Value="lopChon"
+                                Data="cacLop"
+                                Placeholder="-- Tất cả các lớp --"
+                                AllowClear="true"
+                                AllowFiltering="true"
+                                Change="@(async _ => await TaiBaoCao())"
+                                Class="input-dropdown"
+                                Style="width:100%"
+                                PopupCssClass="nk-dropdown-popup" />
+            </div>
+
+            <div class="form-field">
+                <label>Xếp loại</label>
+                <RadzenDropDown TValue="string"
+                                @bind-Value="xepLoaiChon"
+                                Data="cacXepLoai"
+                                Placeholder="-- Tất cả xếp loại --"
+                                AllowClear="true"
+                                Change="@(async _ => await TaiBaoCao())"
+                                Class="input-dropdown"
+                                Style="width:100%"
+                                PopupCssClass="nk-dropdown-popup" />
+            </div>
+        </div>
             </section>
 
             @if (kyId > 0)
@@ -76,16 +87,38 @@
                     else
                     {
                         <div class="table-wrap">
-                            <table>
-                                <thead><tr><th>STT</th><th>HỌ VÀ TÊN</th><th>LỚP</th><th>TỔNG ĐIỂM</th><th>ĐIỂM / 10</th><th>XẾP LOẠI</th></tr></thead>
-                                <tbody>
-                                    @for (int i = 0; i < baoCao.Count; i++)
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>STT</th>
+                                <th>HỌ VÀ TÊN</th>
+                                <th>LỚP</th>
+                                @foreach (var tc in tieuChis)
+                                {
+                                    <th title="@tc.TenTieuChi">TC@(tc.ThuTu) (@tc.DiemToiDa.ToString("0.##"))</th>
+                                }
+                                <th>TỔNG ĐIỂM</th>
+                                <th>XẾP LOẠI</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (int i = 0; i < baoCao.Count; i++)
+                            {
+                                var item = baoCao[i];
+                                <tr>
+                                    <td>@(i + 1)</td>
+                                    <td><b>@item.HoTen</b></td>
+                                    <td><span class="class-tag">@item.Lop</span></td>
+                                    @foreach (var tc in tieuChis)
                                     {
-                                        var item = baoCao[i];
-                                        <tr><td>@(i + 1)</td><td><b>@item.HoTen</b></td><td><span class="class-tag">@item.Lop</span></td><td>@item.TongDiem.ToString("0.##") / @item.TongDiemToiDa.ToString("0.##")</td><td><b class="score-value">@item.Diem.ToString("0.0")</b><span class="muted-cell"> / 10</span></td><td><span class="rating-badge @BadgeClass(item.XepLoai)">@item.XepLoai</span></td></tr>
+                                        <td>@item.ChiTiet.GetValueOrDefault(tc.Id).ToString("0.##")</td>
                                     }
-                                </tbody>
-                            </table>
+                                    <td><b class="score-value">@item.Diem.ToString("0.0")</b><span class="muted-cell"> / 10</span></td>
+                                    <td><span class="rating-badge @BadgeClass(item.XepLoai)">@item.XepLoai</span></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
                         </div>
                     }
                 </section>
@@ -102,6 +135,81 @@
     .page-content{min-height:100vh;background:var(--background);color:var(--text);font:14px "Segoe UI",Arial,sans-serif}.page-content *{box-sizing:border-box}.topbar{min-height:100px;padding:0 30px;background:linear-gradient(105deg,#064b35,#087447);border-bottom:2px solid #d6b84a;display:flex;align-items:center;justify-content:space-between;gap:20px;color:white}.brand,.topbar-right{display:flex;align-items:center}.brand{gap:18px}.brand-logo-image,.academy-logo{width:72px;height:72px;object-fit:contain}.brand-divider{height:58px;width:1px;background:#ffffff65}.brand-text h2{font-size:19px;margin:0 0 7px}.brand-text small{color:#f4d977;font-size:10px;letter-spacing:.8px}.topbar-right{gap:22px}.system-status{color:#e6f4eb;font-size:12px}.system-status span{display:inline-block;width:7px;height:7px;background:#21a564;border-radius:50%;margin-right:5px}.user-avatar{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:#f5dc79;color:#12553a;font-weight:700}.page-layout{display:flex;min-height:calc(100vh - 100px)}.sidebar{width:255px;flex-shrink:0;background:linear-gradient(180deg,#064333,#07392e);padding:25px 16px 18px;display:flex;flex-direction:column}.side-caption{color:#a7c9b6;font-size:10px;font-weight:700;letter-spacing:1.1px;padding:0 12px;margin-bottom:12px}.side-caption-second{margin-top:28px}.nav-item{text-decoration:none;border-radius:9px;padding:13px;width:100%;display:flex;align-items:center;gap:12px;color:#f0f7f2;margin:3px 0;font-size:13px}.nav-item span{width:18px;text-align:center;font-size:17px}.nav-item:hover{background:#175b43;color:#ffe58b}.nav-item.active{background:#d9eee3;color:#08613d;font-weight:700;border-left:4px solid #e5c54e}.sidebar-note{margin-top:auto;background:#064b39;border:1px solid #39735c;border-radius:14px;padding:16px;color:#ffe27a;line-height:1.6}.note-icon{font-size:22px;margin-bottom:9px}.sidebar-note p{font-size:11px;color:#e0eee5;margin:7px 0 0}.sidebar-footer{color:#9dbca9;font-size:10px;letter-spacing:1px;padding:23px 10px 0}.main-content{min-width:0;flex:1;padding:22px 25px 28px}.breadcrumb{font-size:12px;color:#507567;margin-bottom:18px}.breadcrumb span{padding:0 9px;color:#bdc8c0}.section-heading{display:flex;justify-content:space-between;gap:15px;margin:3px 0 20px}.section-heading h1{font-size:25px;margin:7px 0;color:#123f32}.section-heading p,.panel-heading p{margin:0;color:var(--muted);font-size:12px;line-height:1.6}.eyebrow{font-size:10px;letter-spacing:1px;font-weight:700}.green-text{color:var(--green)}.panel{margin-top:22px;background:white;border:1px solid #e0ebe4;border-radius:13px;box-shadow:0 3px 12px #0d412a0f;overflow:hidden}.filter-panel{margin-bottom:22px}.panel-heading{padding:21px 23px;display:flex;justify-content:space-between;align-items:center;gap:12px}.panel-heading h2{font-size:15px;margin:0 0 7px;color:#123f32}.form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;padding:22px 23px}.form-field{display:flex;flex-direction:column;gap:8px;min-width:0}.form-field label{font-size:12px;font-weight:650;color:#425449}.form-control-custom{width:100%;background:white;border:1px solid #dfe7e0;border-radius:9px;padding:11px 12px;color:#33483a;font:12px "Segoe UI",sans-serif}.stats-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}.stat-card{background:white;border:1px solid #e0ebe4;border-radius:13px;padding:18px;box-shadow:0 3px 12px #0d412a0f}.stat-icon{width:35px;height:35px;border-radius:10px;display:grid;place-items:center;margin-bottom:12px}.green-icon{background:#e9f6ee;color:#16834b}.blue-icon{background:#edf4ff;color:#3977c6}.gold-icon{background:#fff6df;color:#c18b20}.purple-icon{background:#f3edff;color:#8864c7}.stat-label{font-size:11px;color:#7d8a81}.stat-number{font-size:27px;font-weight:750;margin:8px 0}.stat-foot{font-size:10px;color:#a0aaa3}.table-wrap{width:100%;overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:720px;text-align:left}thead{background:#edf5f0}th{padding:14px 16px;color:#507567;font-size:9px;letter-spacing:.55px}td{padding:14px 16px;border-top:1px solid #edf1ed;font-size:12px;color:#536258}td b{color:#2b3d31}.score-value{color:#087447!important;font-size:14px}.muted-cell{color:#91a097;font-size:11px}.class-tag{background:#edf5f0;color:#087447;padding:6px 9px;border-radius:7px}.rating-badge{display:inline-block;border-radius:20px;padding:6px 10px;font-size:10px;font-weight:700;white-space:nowrap}.rating-excellent,.rating-good{background:#e5f4e9;color:#167344}.rating-fair{background:#edf4ff;color:#3977c6}.rating-average{background:#fff6df;color:#936b1c}.rating-none{background:#f0f2f1;color:#7c8981}.btn-primary,.btn-outline{display:inline-block;text-decoration:none;padding:10px 15px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer}.btn-primary{background:#08764a;color:white;border:1px solid #08764a}.btn-outline{background:white;color:#08764a;border:1px solid #cfe3d5}.empty-state{padding:42px 20px;text-align:center;color:#718078}.empty-state>div{font-size:32px;color:#a5cbb0;margin-bottom:12px}.empty-state b{color:#33483a;font-size:13px}.empty-state p{font-size:12px}.page-footer{display:flex;justify-content:space-between;gap:15px;color:#789487;font-size:10px;padding:25px 2px 5px}
     @@media(max-width:950px){.sidebar{width:215px}.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.form-grid{grid-template-columns:1fr 1fr}}
     @@media(max-width:700px){.page-layout{display:block}.sidebar{width:100%;padding:10px;flex-direction:row;flex-wrap:wrap}.side-caption,.sidebar-note,.sidebar-footer{display:none}.nav-item{width:auto;padding:9px}.main-content{padding:18px 12px}.form-grid,.stats-grid{grid-template-columns:1fr}.page-footer{flex-direction:column}}
+    /* ===== DROPDOWN: CĂN GIỮA CHUẨN ===== */
+
+    .input-dropdown.rz-dropdown {
+        width: 100% !important;
+        height: 40px !important;
+        min-height: 40px !important;
+        display: flex !important;
+        align-items: center !important;
+        border: 1px solid #dfe7e0 !important;
+        border-radius: 9px !important;
+        background: #fff !important;
+        box-shadow: none !important;
+        box-sizing: border-box !important;
+    }
+
+    .input-dropdown .rz-dropdown-label-container {
+        height: 100% !important;
+        min-width: 0 !important;
+        flex: 1 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 12px !important;
+        overflow: hidden !important;
+    }
+
+    .input-dropdown .rz-dropdown-label,
+    .input-dropdown .rz-placeholder {
+        position: static !important;
+        display: block !important;
+        height: auto !important;
+        min-height: 0 !important;
+        line-height: normal !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        transform: none !important;
+        font-family: "Segoe UI", Arial, sans-serif !important;
+        font-size: 12px !important;
+        font-weight: 400 !important;
+        color: #33483a !important;
+        text-align: center !important;
+    }
+
+    .input-dropdown .rz-dropdown-trigger {
+        height: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 12px !important;
+    }
+
+    .input-dropdown.rz-dropdown:focus-within {
+        border-color: #55a979 !important;
+        box-shadow: 0 0 0 3px #16834b12 !important;
+    }
+
+    .rz-dropdown-panel {
+        border: 1px solid #dfe7e0 !important;
+        border-radius: 9px !important;
+        box-shadow: 0 6px 18px #0d412a22 !important;
+    }
+
+        .rz-dropdown-panel .rz-dropdown-item {
+            min-height: 36px !important;
+            padding: 0 12px !important;
+            display: flex !important;
+            align-items: center !important;
+            font-family: "Segoe UI", Arial, sans-serif !important;
+            font-size: 12px !important;
+            color: #33483a !important;
+        }
+
+            .rz-dropdown-panel .rz-dropdown-item:hover {
+                background: #f0f7f2 !important;
+            }
 </style>
 
 @code {
@@ -109,18 +217,25 @@
     {
         public string HoTen { get; set; } = "";
         public string Lop { get; set; } = "";
-        public double TongDiem { get; set; }
-        public double TongDiemToiDa { get; set; }
+        public Dictionary<int, double> ChiTiet { get; set; } = new();
         public double Diem { get; set; }
         public string XepLoai { get; set; } = "";
     }
 
     private List<KyDanhGia> cacKy = new();
+    private List<TieuChiDanhGia> tieuChis = new();
     private List<string> cacLop = new();
+    private List<string> cacXepLoai = new() { "Xuất sắc", "Giỏi", "Khá", "Trung bình", "Không xếp loại" };
     private List<BaoCaoDong> baoCao = new();
+    private sealed class BoLocDaLuu
+    {
+        public int KyId { get; set; }
+        public string? Lop { get; set; }
+        public string? XepLoai { get; set; }
+    }
     private int kyId;
-    private string lopChon = "";
-    private string xepLoaiChon = "";
+    private string? lopChon = null;
+    private string? xepLoaiChon = null;
     private int soChuaDanhGia;
     private string tenKyDangChon = "";
     private string CsvDataUri => "data:text/csv;charset=utf-8," + Uri.EscapeDataString("\uFEFF" + TaoCsv());
@@ -132,7 +247,10 @@
         try
         {
             await using var db = await DbFactory.CreateDbContextAsync();
+            await TieuChiCoDinh.DamBaoAsync(db);
             cacKy = await db.KyDanhGias.AsNoTracking().OrderByDescending(x => x.Id).ToListAsync();
+            tieuChis = await db.TieuChiDanhGias.AsNoTracking()
+                .Where(x => x.DangSuDung).OrderBy(x => x.ThuTu).ToListAsync();
             cacLop = await db.HocViens.AsNoTracking()
                 .Select(x => x.Lop).Where(x => x != null && x != "")
                 .Distinct().OrderBy(x => x).ToListAsync();
@@ -142,7 +260,34 @@
             thongBaoLoi = "Lỗi tải dữ liệu: " + ex.GetBaseException().Message;
         }
     }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
 
+        try
+        {
+            var daLuu = await Luu.GetAsync<BoLocDaLuu>("bao-cao-bo-loc");
+
+            if (daLuu.Success && daLuu.Value is not null && cacKy.Any(x => x.Id == daLuu.Value.KyId))
+            {
+                kyId = daLuu.Value.KyId;
+                lopChon = daLuu.Value.Lop;
+                xepLoaiChon = daLuu.Value.XepLoai;
+            }
+            else if (cacKy.Count > 0)
+            {
+                kyId = cacKy[0].Id;   // chưa có gì được lưu thì chọn kỳ mới nhất
+            }
+
+            if (kyId > 0) await TaiBaoCao();
+        }
+        catch
+        {
+            // bỏ qua, người dùng vẫn chọn tay được
+        }
+
+        StateHasChanged();
+    }
     private async Task TaiBaoCao()
     {
         baoCao.Clear();
@@ -151,7 +296,16 @@
         var ky = cacKy.FirstOrDefault(x => x.Id == kyId);
         tenKyDangChon = ky?.TenKy ?? "";
         if (ky == null) return;
-
+        try
+        {
+            await Luu.SetAsync("bao-cao-bo-loc", new BoLocDaLuu
+            {
+                KyId = kyId,
+                Lop = lopChon,
+                XepLoai = xepLoaiChon
+            });
+        }
+        catch { }
         try
         {
             await using var db = await DbFactory.CreateDbContextAsync();
@@ -159,23 +313,38 @@
             var hocVienQuery = db.HocViens.AsNoTracking().AsQueryable();
             if (!string.IsNullOrWhiteSpace(lopChon)) hocVienQuery = hocVienQuery.Where(x => x.Lop == lopChon);
             var danhSachHocVien = await hocVienQuery.OrderBy(x => x.Lop).ThenBy(x => x.HoTen).ToListAsync();
-            var ketQua = await db.Set<KetQuaTieuChi>().AsNoTracking().Where(x => x.KyDanhGiaId == kyId).ToListAsync();
 
-            var nhomKetQua = ketQua.GroupBy(x => x.HocVienId)
-                .ToDictionary(g => g.Key, g => new { Tong = g.Sum(x => x.DiemDat), ToiDa = g.Sum(x => x.DiemToiDa) });
+            // Chỉ lấy điểm của 5 tiêu chí đang dùng
+            var idTieuChi = tieuChis.Select(x => x.Id).ToList();
+            var ketQua = await db.Set<KetQuaTieuChi>().AsNoTracking()
+                .Where(x => x.KyDanhGiaId == kyId && idTieuChi.Contains(x.TieuChiDanhGiaId))
+                .ToListAsync();
+
+            var nhomKetQua = ketQua.GroupBy(x => x.HocVienId).ToDictionary(g => g.Key, g => g.ToList());
             soChuaDanhGia = danhSachHocVien.Count(x => !nhomKetQua.ContainsKey(x.Id));
+
+            var tongToiDa = tieuChis.Sum(x => x.DiemToiDa);
+            if (tongToiDa <= 0) return;
 
             foreach (var hv in danhSachHocVien)
             {
-                if (!nhomKetQua.TryGetValue(hv.Id, out var diemDaCham)) continue;
-                var tong = diemDaCham.Tong;
-                var tongToiDa = diemDaCham.ToiDa;
-                if (tongToiDa <= 0) continue;
+                if (!nhomKetQua.TryGetValue(hv.Id, out var cacDong)) continue;
+
+                var tong = cacDong.Sum(x => x.DiemDat);
                 var diemChuaLamTron = tong / tongToiDa * 10.0;
                 var diem10 = Math.Round(diemChuaLamTron, 1, MidpointRounding.AwayFromZero);
                 var xepLoai = XepLoai(diemChuaLamTron);
                 if (!string.IsNullOrWhiteSpace(xepLoaiChon) && xepLoai != xepLoaiChon) continue;
-                baoCao.Add(new BaoCaoDong { HoTen = hv.HoTen ?? "", Lop = hv.Lop ?? "", TongDiem = tong, TongDiemToiDa = tongToiDa, Diem = diem10, XepLoai = xepLoai });
+
+                baoCao.Add(new BaoCaoDong
+                {
+                    HoTen = hv.HoTen ?? "",
+                    Lop = hv.Lop ?? "",
+                    ChiTiet = cacDong.GroupBy(x => x.TieuChiDanhGiaId)
+                                     .ToDictionary(g => g.Key, g => g.Sum(v => v.DiemDat)),
+                    Diem = diem10,
+                    XepLoai = xepLoai
+                });
             }
         }
         catch (Exception ex)
@@ -189,16 +358,23 @@
 
     private string TaoCsv()
     {
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("STT,Họ và tên,Lớp,Tổng điểm,Tổng điểm tối đa,Điểm/10,Xếp loại,Kỳ đánh giá");
+
+        sb.Append("STT,Họ và tên,Lớp");
+        foreach (var tc in tieuChis)
+            sb.Append(',').Append(Csv($"{tc.ThuTu}. {tc.TenTieuChi} (tối đa {tc.DiemToiDa.ToString("0.##", inv)})"));
+        sb.AppendLine(",Tổng điểm /10,Xếp loại,Kỳ đánh giá");
+
         for (int i = 0; i < baoCao.Count; i++)
         {
             var x = baoCao[i];
-            sb.Append(i + 1).Append(',').Append(Csv(x.HoTen)).Append(',').Append(Csv(x.Lop)).Append(',')
-               .Append(x.TongDiem.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)).Append(',')
-              .Append(x.TongDiemToiDa.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)).Append(',')
-              .Append(x.Diem.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)).Append(',')
-              .Append(Csv(x.XepLoai)).Append(',').Append(Csv(tenKyDangChon)).AppendLine();
+            sb.Append(i + 1).Append(',').Append(Csv(x.HoTen)).Append(',').Append(Csv(x.Lop));
+            foreach (var tc in tieuChis)
+                sb.Append(',').Append(x.ChiTiet.GetValueOrDefault(tc.Id).ToString("0.##", inv));
+            sb.Append(',').Append(x.Diem.ToString("0.0", inv))
+              .Append(',').Append(Csv(x.XepLoai))
+              .Append(',').Append(Csv(tenKyDangChon)).AppendLine();
         }
         return sb.ToString();
     }
